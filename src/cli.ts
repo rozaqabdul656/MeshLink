@@ -44,7 +44,11 @@ async function startNode(args: string[]): Promise<void> {
 }
 
 async function sendTask(nodeUrl: string, caller: string, capability: string, instruction: string, readOnly: boolean): Promise<Task> {
-  const response = await fetch(`${nodeUrl.replace(/\/$/, "")}/v1/tasks`, {
+  const base = nodeUrl.replace(/\/$/, "");
+  const agentsResponse = await fetch(`${base}/v1/agents/capability?capability=${encodeURIComponent(capability)}`);
+  const agents = agentsResponse.ok ? await agentsResponse.json() as { agents?: Array<{ endpoint: string }> } : {};
+  const target = agents.agents?.[0]?.endpoint ?? base;
+  const response = await fetch(`${target.replace(/\/$/, "")}/v1/tasks`, {
     method: "POST",
     headers: { "content-type": "application/json", "x-meshlink-agent": caller },
     body: JSON.stringify({ protocolVersion: PROTOCOL_VERSION, targetCapability: capability, input: { instruction }, constraints: { readOnly } }),
