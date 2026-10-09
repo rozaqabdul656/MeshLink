@@ -15,7 +15,7 @@ Phase 1 intentionally stays small: an HTTP node, capability-scoped tasks, deny-b
 
 See [the Phase 1 architecture](docs/ARCHITECTURE.md) and [the compatibility roadmap](docs/ROADMAP.md).
 
-## Install globally
+## Quick start
 
 ```bash
 npm install -g @meshlink-ai/meshlink
@@ -24,43 +24,40 @@ meshlink
 
 🎉 Dashboard opens at `http://localhost:20128`.
 
-## Release to npm
-
-MeshLink publishes through GitHub Actions when a version tag is pushed. It uses npm Trusted Publishing (OIDC), so the repository never needs to store an `NPM_TOKEN` secret.
-
-Before the first automated release, configure this once in the npm package settings:
-
-- Trusted publisher: **GitHub Actions**
-- GitHub owner: `rozaqabdul656`
-- Repository: `MeshLink`
-- Workflow filename: `publish.yml`
-
-Then release a version whose tag matches `package.json` exactly:
+The published package is [@meshlink-ai/meshlink on npm](https://www.npmjs.com/package/@meshlink-ai/meshlink). Verify the installed CLI with:
 
 ```bash
-npm version patch
-git push --follow-tags
+meshlink --help
 ```
 
-For example, version `0.1.1` must be released as tag `v0.1.1`. GitHub runs tests, builds the package, and publishes it to npm. See [the release guide](docs/PUBLISHING.md) for the first-release setup and troubleshooting.
+The default node listens only on `127.0.0.1:20128` and has a deny-by-default policy. Use `Ctrl+C` to stop it.
 
-Until the first npm release is published, install the current GitHub version instead:
+## Run a node
+
+Give the node a stable name, ID, port, and policy file when it will serve other local tools or a worker adapter:
 
 ```bash
-npm install -g github:rozaqabdul656/MeshLink
-meshlink
+meshlink node start \
+  --name vps-observer \
+  --id vps-observer \
+  --port 20128 \
+  --policy ./policy.yaml
 ```
 
-The default node is intentionally local-only and deny-by-default. Use `Ctrl+C` to stop it.
+Save the following as `policy.yaml` to start. Each node owns its own policy—senders cannot bypass it.
 
-## From source
-
-```bash
-npm install
-npm run dev:node -- --name vps-observer --id vps-observer --port 20128 --policy examples/policy.yaml
+```yaml
+version: 1
+default: deny
+rules:
+  - caller: agent://local-host
+    capabilities: [service.diagnostics]
+    decision: allow
 ```
 
-In a second terminal, send a task:
+## Send a task
+
+With an allowed caller and the node running, call the local HTTP API:
 
 ```bash
 curl -s http://127.0.0.1:20128/v1/tasks \
@@ -76,10 +73,10 @@ curl -s http://127.0.0.1:20128/v1/tasks \
 
 ## Connect an MCP-capable agent
 
-Run the adapter against a reachable MeshLink Node:
+Run the MCP adapter against a reachable MeshLink Node:
 
 ```bash
-npm run dev:mcp -- --node http://127.0.0.1:20128 --caller agent://local-host
+meshlink mcp --node http://127.0.0.1:20128 --caller agent://local-host
 ```
 
 Point your MCP host at that command. The host receives these tools:
@@ -97,16 +94,7 @@ MeshLink has two roles:
 - **Sender host**: an agent that calls MeshLink tools to delegate work. Examples: Codex, Claude Code, OpenCode, Hermes, or a custom agent.
 - **Worker node**: a MeshLink Node near the repo, VPS, Docker host, or internal system that owns its own policy and capability handlers.
 
-For every sender host, first build MeshLink once and keep the absolute checkout path available:
-
-```bash
-git clone https://github.com/rozaqabdul656/MeshLink.git
-cd MeshLink
-npm install
-npm run build
-```
-
-Replace `/absolute/path/to/MeshLink` in the following examples with the actual cloned path. The MCP adapter only needs local access to a MeshLink Node; never put a VPS SSH key or a worker credential in an agent's MCP configuration.
+Install the global CLI on the sender host first. The MCP adapter only needs local access to a MeshLink Node; never put a VPS SSH key or a worker credential in an agent's MCP configuration.
 
 ### Codex CLI
 
@@ -114,8 +102,8 @@ Add this to `~/.codex/config.toml`:
 
 ```toml
 [mcp_servers.meshlink]
-command = "node"
-args = ["/absolute/path/to/MeshLink/dist/cli.js", "mcp", "--node", "http://127.0.0.1:8400", "--caller", "agent://codex-host"]
+command = "meshlink"
+args = ["mcp", "--node", "http://127.0.0.1:8400", "--caller", "agent://codex-host"]
 ```
 
 Restart Codex, then ask it to use `mesh_find_agents` or `mesh_send_task`. Codex supports MCP server configuration through its CLI or `~/.codex/config.toml`. [OpenAI documentation](https://developers.openai.com/resources/docs-mcp)
@@ -128,9 +116,8 @@ Create `.mcp.json` in the repository where Claude Code runs:
 {
   "mcpServers": {
     "meshlink": {
-      "command": "node",
+      "command": "meshlink",
       "args": [
-        "/absolute/path/to/MeshLink/dist/cli.js",
         "mcp",
         "--node", "http://127.0.0.1:8400",
         "--caller", "agent://claude-host"
@@ -154,8 +141,7 @@ Add this to `opencode.json` or `~/.config/opencode/opencode.json`:
       "meshlink": {
         "type": "local",
         "command": [
-          "node",
-          "/absolute/path/to/MeshLink/dist/cli.js",
+          "meshlink",
           "mcp",
           "--node", "http://127.0.0.1:8400",
           "--caller", "agent://opencode-host"
@@ -244,13 +230,9 @@ rules:
 
 `allow` runs an installed capability handler. `approval` stores the task as `awaiting_approval`; an operator must call its approval endpoint. Anything else is denied.
 
-## Development
+## Contributing
 
-```bash
-npm run check
-npm test
-npm run build
-```
+Want to add a capability, adapter, integration, or improve the docs? See [CONTRIBUTING.md](CONTRIBUTING.md) for local development, tests, pull-request expectations, and the maintainer [npm release process](docs/PUBLISHING.md).
 
 ## Security status
 
