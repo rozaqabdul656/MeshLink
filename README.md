@@ -15,17 +15,35 @@ Phase 1 intentionally stays small: an HTTP node, capability-scoped tasks, deny-b
 
 See [the Phase 1 architecture](docs/ARCHITECTURE.md) and [the compatibility roadmap](docs/ROADMAP.md).
 
-## Quick start
+## Install globally
+
+```bash
+npm install -g meshlink
+meshlink
+```
+
+🎉 Dashboard opens at `http://localhost:20128`.
+
+Until the first npm release is published, install the current GitHub version instead:
+
+```bash
+npm install -g github:rozaqabdul656/MeshLink
+meshlink
+```
+
+The default node is intentionally local-only and deny-by-default. Use `Ctrl+C` to stop it.
+
+## From source
 
 ```bash
 npm install
-npm run dev:node -- --name vps-observer --id vps-observer --port 8400 --policy examples/policy.yaml
+npm run dev:node -- --name vps-observer --id vps-observer --port 20128 --policy examples/policy.yaml
 ```
 
 In a second terminal, send a task:
 
 ```bash
-curl -s http://127.0.0.1:8400/v1/tasks \
+curl -s http://127.0.0.1:20128/v1/tasks \
   -H 'content-type: application/json' \
   -H 'x-meshlink-agent: agent://local-host' \
   --data '{
@@ -41,7 +59,7 @@ curl -s http://127.0.0.1:8400/v1/tasks \
 Run the adapter against a reachable MeshLink Node:
 
 ```bash
-npm run dev:mcp -- --node http://127.0.0.1:8400 --caller agent://local-host
+npm run dev:mcp -- --node http://127.0.0.1:20128 --caller agent://local-host
 ```
 
 Point your MCP host at that command. The host receives these tools:
@@ -186,7 +204,7 @@ The Codex worker adapter is not included in Phase 1 yet. Use `service.diagnostic
 
 ## Dashboard
 
-Open `http://127.0.0.1:8400/` while a node is running. The dashboard is deliberately read-only in Phase 1: it visualizes local state but cannot edit policies or approve actions. Those write operations require authenticated admin identities in Phase 2.
+Open `http://127.0.0.1:20128/` while a node is running. The dashboard is deliberately read-only in Phase 1: it visualizes local state but cannot edit policies or approve actions. Those write operations require authenticated admin identities in Phase 2.
 
 ## Policy
 

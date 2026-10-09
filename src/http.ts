@@ -1,6 +1,7 @@
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { PROTOCOL_VERSION, type TaskRequest } from "./contracts.js";
 import { MeshNode } from "./node.js";
@@ -17,8 +18,10 @@ function send(response: ServerResponse, status: number, payload: unknown): void 
 }
 
 function sendDashboard(response: ServerResponse, file: string): void {
-  const filePath = path.resolve(process.cwd(), "dashboard", file);
-  if (!filePath.startsWith(path.resolve(process.cwd(), "dashboard")) || !fs.existsSync(filePath)) {
+  // Works from a source checkout and from an npm global installation.
+  const dashboardRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "dashboard");
+  const filePath = path.resolve(dashboardRoot, file);
+  if (!filePath.startsWith(dashboardRoot) || !fs.existsSync(filePath)) {
     response.writeHead(404);
     response.end("Not found");
     return;

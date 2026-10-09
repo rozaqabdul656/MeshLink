@@ -6,11 +6,19 @@
   "bin": {
     "meshlink": "./dist/cli.js"
   },
+  "files": [
+    "dist",
+    "dashboard",
+    "README.md",
+    "LICENSE",
+    "examples"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "prepack": "npm run build",
     "dev:node": "tsx src/cli.ts node",
     "dev:mcp": "tsx src/cli.ts mcp",
-    "start": "node dist/cli.js node",
+    "start": "node dist/cli.js",
     "test": "tsx --test test/**/*.test.ts",
     "check": "tsc --noEmit -p tsconfig.json"
   },
