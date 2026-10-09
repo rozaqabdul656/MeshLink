@@ -30,4 +30,9 @@ The MCP adapter is deliberately thin. It translates MCP tool calls into the stab
 
 ## Interactive diagram
 
-The [interactive architecture diagram](../.archify/architecture-phase-1-20261009-130000/meshlink-phase-1.html) is generated from committed TypeScript source and links each component to its supporting lines. Its JSON source and validation receipts live alongside the HTML.
+Interactive diagrams are generated from committed source and link each component to its supporting lines:
+
+- [Agent task flow](../.archify/architecture-phase-1-20261009-130000/meshlink-phase-1.html)
+- [Local control dashboard](../.archify/architecture-dashboard-20261009-131500/meshlink-dashboard.html)
+
+Their JSON sources and validation receipts live alongside the HTML artifacts.

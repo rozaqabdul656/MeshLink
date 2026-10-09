@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "MeshLink Phase 1 — local control dashboard",
+    "subtitle": "A read-only router-style view over the policy-enforced node.",
+    "output": ".archify/architecture-dashboard-20261009-131500/meshlink-dashboard.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/rozaqabdul656/MeshLink.git",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "1a6471dcebff23e8eb9e124315819069420e31ee"
+    }
+  },
+  "components": [
+    { "id": "operator", "type": "external", "label": "Node operator", "sublabel": "opens the local dashboard", "pos": [35, 275], "size": [150, 68], "sources": [{ "path": "dashboard/index.html", "line": 1, "end_line": 35, "label": "dashboard UI" }] },
+    { "id": "dashboard", "type": "frontend", "label": "Control dashboard", "sublabel": "topology · tasks · audit", "pos": [250, 275], "size": [170, 68], "sources": [{ "path": "dashboard/app.js", "line": 48, "end_line": 66, "label": "live refresh" }] },
+    { "id": "http-node", "type": "backend", "label": "MeshLink HTTP Node", "sublabel": "serves UI and read APIs", "pos": [625, 275], "size": [175, 68], "sources": [{ "path": "src/http.ts", "line": 19, "end_line": 40, "label": "dashboard and APIs" }] },
+    { "id": "task-state", "type": "database", "label": "Task and audit state", "sublabel": "in-memory in Phase 1", "pos": [955, 275], "size": [170, 68], "sources": [{ "path": "src/node.ts", "line": 26, "end_line": 39, "label": "read models" }] },
+    { "id": "policy-boundary", "type": "security", "label": "Local policy boundary", "sublabel": "execution remains local", "pos": [625, 105], "size": [175, 68], "sources": [{ "path": "src/node.ts", "line": 42, "end_line": 68, "label": "policy enforcement" }] }
+  ],
+  "boundaries": [
+    { "kind": "security-group", "label": "Operator's local MeshLink environment", "wraps": ["dashboard", "http-node", "task-state", "policy-boundary"] }
+  ],
+  "connections": [
+    { "id": "operator-dashboard", "from": "operator", "to": "dashboard", "label": "browser", "variant": "emphasis" },
+    { "id": "dashboard-http", "from": "dashboard", "to": "http-node", "label": "GET /health, agents, tasks, audit", "variant": "emphasis" },
+    { "id": "http-state", "from": "http-node", "to": "task-state", "label": "read node state" },
+    { "id": "node-policy", "from": "http-node", "to": "policy-boundary", "label": "no dashboard bypass", "variant": "security", "fromSide": "top", "toSide": "bottom" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Phase 1 dashboard", "items": ["Displays topology, agents, task states, and audit events", "Refreshes through the local node's HTTP endpoints"] },
+    { "dot": "rose", "title": "Safety", "items": ["No policy editor or action controls", "Writes wait for authenticated Phase 2 admin identity"] }
+  ]
+}

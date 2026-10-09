@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "command": "finalize",
+  "status": "fail",
+  "type": "architecture",
+  "quality": "showcase",
+  "startedAt": "2026-10-09T08:15:23.979Z",
+  "specification": {
+    "path": "/Users/rizkiakbarabdulrozaq/Documents/ChatGPT/Opensource/MeshLink/.archify/architecture-dashboard-20261009-131500/candidate.json",
+    "sha256": "5bc21cd686474132ef9a26b9ba09ef529bc6d6734f4a752826daa5e466b57461",
+    "bytes": 2902
+  },
+  "artifact": {
+    "path": "/Users/rizkiakbarabdulrozaq/Documents/ChatGPT/Opensource/MeshLink/.archify/architecture-dashboard-20261009-131500/meshlink-dashboard.html"
+  },
+  "stages": {
+    "validate": {
+      "status": "fail",
+      "exitCode": 1,
+      "durationMs": null,
+      "command": [
+        "/Users/rizkiakbarabdulrozaq/.hermes/node/bin/node",
+        "/Users/rizkiakbarabdulrozaq/.codex/skills/archify/bin/archify.mjs",
+        "deliver",
+        "architecture",
+        "/Users/rizkiakbarabdulrozaq/Documents/ChatGPT/Opensource/MeshLink/.archify/architecture-dashboard-20261009-131500/candidate.json",
+        "/Users/rizkiakbarabdulrozaq/Documents/ChatGPT/Opensource/MeshLink/.archify/architecture-dashboard-20261009-131500/meshlink-dashboard.html",
+        "--quality",
+        "showcase",
+        "--repo-root",
+        "/Users/rizkiakbarabdulrozaq/Documents/ChatGPT/Opensource/MeshLink",
+        "--json"
+      ],
+      "receipt": {
+        "schemaVersion": 1,
+        "ok": false,
+        "command": "deliver",
+        "receiptId": "10eab51f-0ada-4f00-995d-ed6279ffe4f6",
+        "stage": "render",
+        "type": "architecture",
+        "input": "/Users/rizkiakbarabdulrozaq/Documents/ChatGPT/Opensource/MeshLink/.archify/architecture-dashboard-20261009-131500/candidate.json",
+        "output": "/Users/rizkiakbarabdulrozaq/Documents/ChatGPT/Opensource/MeshLink/.archify/architecture-dashboard-20261009-131500/meshlink-dashboard.html",
+        "error": "Architecture layout validation failed:\n- Label \"GET /health, agents, tasks, audit\" has only 95px between \"dashboard\" and \"http-node\"; it needs at least 185px to stay beside its route — increase that clear gap or place the connected nodes on another readable row, preserving the label.",
+        "diagnostics": [
+          {
+            "code": "composition/label-gap",
+            "severity": "error",
+            "message": "Label \"GET /health, agents, tasks, audit\" has only 95px between \"dashboard\" and \"http-node\"; it needs at least 185px to stay beside its route — increase that clear gap or place the connected nodes on another readable row, preserving the label.",
+            "subject": {
+              "diagramType": "architecture",
+              "collection": "connections",
+              "id": "dashboard-http",
+              "from": "dashboard",
+              "to": "http-node"
+            },
+            "evidence": {
+              "clearGapPx": 95,
+              "minimumGapPx": 185,
+              "labelWidthPx": 168.4,
+              "obstacles": [
+                "dashboard",
+                "http-node"
+              ]
+            },
+            "supportedFixes": [
+              "increase the clear gap between the connected nodes to at least 185px",
+              "reposition the connected nodes together while preserving the full relationship label"
+            ]
+          }
+        ],
+        "provenance": "absent",
+        "update": {
+          "status": "unavailable",
+          "installedVersion": null,
+          "availableVersion": null,
+          "releaseNotes": null,
+          "checkedAt": null,
+          "source": null,
+          "noticeRequired": false,
+          "noticeText": null,
+          "reason": "disabled"
+        }
+      },
+      "execution": "embedded-in-deliver"
+    },
+    "deliver": {
+      "status": "not-run",
+      "execution": "blocked-by-validate"
+    }
+  },
+  "diagnostics": [
+    {
+      "code": "composition/label-gap",
+      "severity": "error",
+      "message": "Label \"GET /health, agents, tasks, audit\" has only 95px between \"dashboard\" and \"http-node\"; it needs at least 185px to stay beside its route — increase that clear gap or place the connected nodes on another readable row, preserving the label.",
+      "subject": {
+        "diagramType": "architecture",
+        "collection": "connections",
+        "id": "dashboard-http",
+        "from": "dashboard",
+        "to": "http-node"
+      },
+      "evidence": {
+        "clearGapPx": 95,
+        "minimumGapPx": 185,
+        "labelWidthPx": 168.4,
+        "obstacles": [
+          "dashboard",
+          "http-node"
+        ]
+      },
+      "supportedFixes": [
+        "increase the clear gap between the connected nodes to at least 185px",
+        "reposition the connected nodes together while preserving the full relationship label"
+      ]
+    }
+  ],
+  "evidence": {
+    "receipt": "/Users/rizkiakbarabdulrozaq/Documents/ChatGPT/Opensource/MeshLink/.archify/architecture-dashboard-20261009-131500/meshlink-dashboard.finalize.json",
+    "summaryReceipt": "/Users/rizkiakbarabdulrozaq/Documents/ChatGPT/Opensource/MeshLink/.archify/architecture-dashboard-20261009-131500/meshlink-dashboard.finalize-summary.json"
+  },
+  "visualReview": "not-requested",
+  "failedStage": "validate",
+  "finishedAt": "2026-10-09T08:15:24.196Z",
+  "durationMs": 217,
+  "update": {
+    "status": "unavailable",
+    "installedVersion": null,
+    "availableVersion": null,
+    "releaseNotes": null,
+    "checkedAt": null,
+    "source": null,
+    "noticeRequired": false,
+    "noticeText": null,
+    "reason": "cache-unavailable"
+  }
+}

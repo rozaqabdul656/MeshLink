@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "command": "finalize",
+  "status": "fail",
+  "type": "architecture",
+  "quality": "showcase",
+  "specification": {
+    "path": "/Users/rizkiakbarabdulrozaq/Documents/ChatGPT/Opensource/MeshLink/.archify/architecture-dashboard-20261009-131500/candidate.json",
+    "sha256": "288855401499026876cc72aef9fbeadfcde3656c156470b698d60e77afb4b3ef",
+    "bytes": 2902
+  },
+  "artifact": {
+    "path": "/Users/rizkiakbarabdulrozaq/Documents/ChatGPT/Opensource/MeshLink/.archify/architecture-dashboard-20261009-131500/meshlink-dashboard.html",
+    "sha256": "de552eed1c4fde5a043921b3561c7e3a630902c92623f58190fa0243461260a1",
+    "bytes": 754310
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "fail"
+  },
+  "failedStage": "browser-check",
+  "diagnostics": [
+    {
+      "code": "viewer/browser-check-runtime",
+      "severity": "error",
+      "message": "browser-check could not complete its Chrome inspection.",
+      "subject": {
+        "artifact": "/Users/rizkiakbarabdulrozaq/Documents/ChatGPT/Opensource/MeshLink/.archify/architecture-dashboard-20261009-131500/meshlink-dashboard.html"
+      },
+      "evidence": {
+        "reason": "Chrome DevTools read pipe failed: stream ended\nChrome process: still running.\nChrome transport: Node v26.8.2, libuv 1.52.1, darwin; pid=27967, exitCode=null, signalCode=null.\nChrome read pipe: readable=false, ended=true, destroyed=false, receivedBytes=0, messages=0, bufferedBytes=0.\nChrome write pipe: writable=true, ended=false, destroyed=false, completedWrites=1, writtenBytes=50, bufferedBytes=0."
+      },
+      "supportedFixes": [
+        "resolve the reported Chrome inspection error, then rerun browser-check"
+      ]
+    }
+  ],
+  "diagnosticSummary": {
+    "total": 1,
+    "shown": 1,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "/Users/rizkiakbarabdulrozaq/Documents/ChatGPT/Opensource/MeshLink/.archify/architecture-dashboard-20261009-131500/review-2/meshlink-dashboard.finalize.json",
+    "summaryReceipt": "/Users/rizkiakbarabdulrozaq/Documents/ChatGPT/Opensource/MeshLink/.archify/architecture-dashboard-20261009-131500/review-2/meshlink-dashboard.finalize-summary.json",
+    "browserCheckReceipt": "/Users/rizkiakbarabdulrozaq/Documents/ChatGPT/Opensource/MeshLink/.archify/architecture-dashboard-20261009-131500/review-2/meshlink-dashboard.browser-check.json"
+  },
+  "update": {
+    "status": "unavailable",
+    "installedVersion": null,
+    "availableVersion": null,
+    "releaseNotes": null,
+    "checkedAt": null,
+    "source": null,
+    "noticeRequired": false,
+    "noticeText": null,
+    "reason": "cache-unavailable"
+  },
+  "visualReview": "not-requested",
+  "durationMs": 4500
+}

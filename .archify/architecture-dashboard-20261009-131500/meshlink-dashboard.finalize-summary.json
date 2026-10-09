@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "command": "finalize",
+  "status": "fail",
+  "type": "architecture",
+  "quality": "showcase",
+  "specification": {
+    "path": "/Users/rizkiakbarabdulrozaq/Documents/ChatGPT/Opensource/MeshLink/.archify/architecture-dashboard-20261009-131500/candidate.json",
+    "sha256": "5bc21cd686474132ef9a26b9ba09ef529bc6d6734f4a752826daa5e466b57461",
+    "bytes": 2902
+  },
+  "artifact": {
+    "path": "/Users/rizkiakbarabdulrozaq/Documents/ChatGPT/Opensource/MeshLink/.archify/architecture-dashboard-20261009-131500/meshlink-dashboard.html"
+  },
+  "gates": {
+    "validate": "fail",
+    "deliver": "not-run",
+    "check": "not-run",
+    "browser-check": "not-run"
+  },
+  "failedStage": "validate",
+  "diagnostics": [
+    {
+      "code": "composition/label-gap",
+      "severity": "error",
+      "message": "Label \"GET /health, agents, tasks, audit\" has only 95px between \"dashboard\" and \"http-node\"; it needs at least 185px to stay beside its route — increase that clear gap or place the connected nodes on another readable row, preserving the label.",
+      "subject": {
+        "diagramType": "architecture",
+        "collection": "connections",
+        "id": "dashboard-http",
+        "from": "dashboard",
+        "to": "http-node"
+      },
+      "evidence": {
+        "clearGapPx": 95,
+        "minimumGapPx": 185,
+        "labelWidthPx": 168.4,
+        "obstacles": [
+          "dashboard",
+          "http-node"
+        ]
+      },
+      "supportedFixes": [
+        "increase the clear gap between the connected nodes to at least 185px",
+        "reposition the connected nodes together while preserving the full relationship label"
+      ]
+    }
+  ],
+  "diagnosticSummary": {
+    "total": 1,
+    "shown": 1,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "/Users/rizkiakbarabdulrozaq/Documents/ChatGPT/Opensource/MeshLink/.archify/architecture-dashboard-20261009-131500/meshlink-dashboard.finalize.json",
+    "summaryReceipt": "/Users/rizkiakbarabdulrozaq/Documents/ChatGPT/Opensource/MeshLink/.archify/architecture-dashboard-20261009-131500/meshlink-dashboard.finalize-summary.json"
+  },
+  "update": {
+    "status": "unavailable",
+    "installedVersion": null,
+    "availableVersion": null,
+    "releaseNotes": null,
+    "checkedAt": null,
+    "source": null,
+    "noticeRequired": false,
+    "noticeText": null,
+    "reason": "cache-unavailable"
+  },
+  "visualReview": "not-requested",
+  "durationMs": 217,
+  "nextAction": {
+    "action": "edit-in-place",
+    "candidate": "/Users/rizkiakbarabdulrozaq/Documents/ChatGPT/Opensource/MeshLink/.archify/architecture-dashboard-20261009-131500/candidate.json",
+    "constraint": "Preserve all semantics and user-fixed geometry. Use references/architecture-layout-repair.md to choose a local repair or connected-scene reflow; edit the existing candidate.",
+    "then": "finalize-once"
+  }
+}
