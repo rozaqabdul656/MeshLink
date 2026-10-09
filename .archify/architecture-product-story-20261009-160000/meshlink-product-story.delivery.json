@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "694ae625-1cbe-495f-a7ba-c631458997ee",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/rizkiakbarabdulrozaq/Documents/ChatGPT/Opensource/MeshLink/.archify/architecture-product-story-20261009-160000/candidate.json",
+  "output": "/Users/rizkiakbarabdulrozaq/Documents/ChatGPT/Opensource/MeshLink/.archify/architecture-product-story-20261009-160000/meshlink-product-story.html",
+  "specification": {
+    "sha256": "e8ae9f7e28306a4b51abc5264494fbb0bcb7f920b698d559dfbe3c7993d002c8",
+    "bytes": 6515
+  },
+  "artifact": {
+    "sha256": "a78e386d905483ac69d0a09d91b3d3daae320931ecc84f7666ec533c463c2653",
+    "bytes": 770975
+  }
+}

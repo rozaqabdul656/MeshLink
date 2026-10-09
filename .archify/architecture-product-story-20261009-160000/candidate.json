@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "MeshLink — a policy-aware task mesh for AI agents",
+    "subtitle": "What ships in Phase 1 today, and the compatible path ahead.",
+    "output": ".archify/architecture-product-story-20261009-160000/meshlink-product-story.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/rozaqabdul656/MeshLink.git",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "c9390b624a6afdd751cbc7ad807581e8b98e8564"
+    }
+  },
+  "components": [
+    {
+      "id": "sender-agent",
+      "type": "external",
+      "label": "Any AI agent",
+      "sublabel": "Codex · Claude · Hermes · custom",
+      "pos": [40, 265],
+      "size": [180, 72],
+      "sources": [{ "path": "README.md", "line": 78, "end_line": 83, "label": "sender and worker roles" }]
+    },
+    {
+      "id": "mcp-connector",
+      "type": "backend",
+      "label": "MCP connector",
+      "sublabel": "discover · send task · get status",
+      "pos": [305, 265],
+      "size": [195, 72],
+      "sources": [{ "path": "src/cli.ts", "line": 59, "end_line": 92, "label": "MCP tools" }]
+    },
+    {
+      "id": "meshlink-node",
+      "type": "backend",
+      "label": "MeshLink Node",
+      "sublabel": "HTTP API · meshlink/v1",
+      "pos": [590, 265],
+      "size": [180, 72],
+      "sources": [{ "path": "src/http.ts", "line": 34, "end_line": 70, "label": "node HTTP API" }, { "path": "src/contracts.ts", "line": 1, "end_line": 23, "label": "versioned task contract" }]
+    },
+    {
+      "id": "remote-registry",
+      "type": "backend",
+      "label": "Remote agent registry",
+      "sublabel": "find available capabilities",
+      "pos": [590, 95],
+      "size": [180, 72],
+      "sources": [{ "path": "src/http.ts", "line": 41, "end_line": 50, "label": "agent discovery APIs" }, { "path": "src/registry.ts", "line": 3, "end_line": 27, "label": "agent card registry" }]
+    },
+    {
+      "id": "policy-gate",
+      "type": "security",
+      "label": "Local policy gate",
+      "sublabel": "deny · allow · approval",
+      "pos": [590, 435],
+      "size": [180, 72],
+      "sources": [{ "path": "src/node.ts", "line": 44, "end_line": 80, "label": "policy and approval gate" }]
+    },
+    {
+      "id": "worker-node",
+      "type": "backend",
+      "label": "Worker environment",
+      "sublabel": "local capability handler",
+      "pos": [925, 265],
+      "size": [185, 72],
+      "sources": [{ "path": "src/node.ts", "line": 82, "end_line": 105, "label": "handler execution" }, { "path": "src/cli.ts", "line": 17, "end_line": 35, "label": "sample capability" }]
+    },
+    {
+      "id": "audit-state",
+      "type": "database",
+      "label": "Task + audit state",
+      "sublabel": "in-memory in Phase 1",
+      "pos": [925, 435],
+      "size": [185, 72],
+      "sources": [{ "path": "src/node.ts", "line": 10, "end_line": 14, "label": "in-memory stores" }, { "path": "src/node.ts", "line": 122, "end_line": 126, "label": "audit recording" }]
+    },
+    {
+      "id": "secure-delivery",
+      "type": "security",
+      "label": "Secure delivery",
+      "sublabel": "signed identity · TLS · durable state",
+      "pos": [285, 650],
+      "size": [190, 70],
+      "tag": "NEXT: Phase 2",
+      "sources": [{ "path": "docs/ROADMAP.md", "line": 13, "end_line": 21, "label": "Phase 2 roadmap" }]
+    },
+    {
+      "id": "async-collaboration",
+      "type": "messagebus",
+      "label": "Async collaboration",
+      "sublabel": "queues · retries · progress events",
+      "pos": [570, 650],
+      "size": [195, 70],
+      "tag": "NEXT: Phase 3",
+      "sources": [{ "path": "docs/ROADMAP.md", "line": 23, "end_line": 25, "label": "Phase 3 roadmap" }]
+    },
+    {
+      "id": "open-ecosystem",
+      "type": "cloud",
+      "label": "Open ecosystem + ops",
+      "sublabel": "A2A · SDKs · metrics · RBAC",
+      "pos": [860, 650],
+      "size": [195, 70],
+      "tag": "NEXT: Phases 4–5",
+      "sources": [{ "path": "docs/ROADMAP.md", "line": 27, "end_line": 33, "label": "Phase 4–5 roadmap" }]
+    }
+  ],
+  "boundaries": [
+    { "kind": "security-group", "label": "Each destination owns policy and execution", "wraps": ["meshlink-node", "remote-registry", "policy-gate", "worker-node", "audit-state"] },
+    { "kind": "region", "label": "Compatible extensions — no v1 task-caller break", "wraps": ["secure-delivery", "async-collaboration", "open-ecosystem"] }
+  ],
+  "connections": [
+    { "id": "agent-mcp", "from": "sender-agent", "to": "mcp-connector", "label": "MCP tool call", "variant": "emphasis" },
+    { "id": "mcp-node", "from": "mcp-connector", "to": "meshlink-node", "label": "versioned task", "variant": "emphasis" },
+    { "id": "node-registry", "from": "meshlink-node", "to": "remote-registry", "label": "resolve capability", "fromSide": "top", "toSide": "bottom" },
+    { "id": "node-policy", "from": "meshlink-node", "to": "policy-gate", "label": "authorize request", "variant": "security", "fromSide": "bottom", "toSide": "top" },
+    { "id": "node-worker", "from": "meshlink-node", "to": "worker-node", "label": "run only when allowed", "variant": "security" },
+    { "id": "worker-audit", "from": "worker-node", "to": "audit-state", "label": "result + lifecycle", "fromSide": "bottom", "toSide": "top" },
+    { "id": "policy-secure", "from": "policy-gate", "to": "secure-delivery", "label": "harden identity + storage", "variant": "dashed", "fromSide": "bottom", "toSide": "top" },
+    { "id": "node-async", "from": "meshlink-node", "to": "async-collaboration", "label": "add optional events", "variant": "dashed", "fromSide": "bottom", "toSide": "top" },
+    { "id": "worker-ecosystem", "from": "worker-node", "to": "open-ecosystem", "label": "add adapters + operations", "variant": "dashed", "fromSide": "bottom", "toSide": "top" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "Built in Phase 1", "items": ["MCP connector, HTTP node, remote-agent registry, and dashboard", "Capability-scoped routing, deny-by-default policy, approval state, and audit trail"] },
+    { "dot": "cyan", "title": "Core principle", "items": ["Agents delegate a task; they do not receive automatic shell or filesystem access", "The receiving environment remains the authority for policy and execution"] },
+    { "dot": "amber", "title": "Roadmap promise", "items": ["Future identity, queues, A2A, and operations extend meshlink/v1", "Existing callers keep the same stable task contract"] }
+  ]
+}
