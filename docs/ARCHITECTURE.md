@@ -28,4 +28,4 @@ The MCP adapter is deliberately thin. It translates MCP tool calls into the stab
 
 ## Interactive diagram
 
-After the first source commit, the validated interactive architecture artifact is stored under `.archify/architecture-phase-1-*/`. It is generated from the repository's committed TypeScript source and links each component to its supporting lines.
+The [interactive architecture diagram](../.archify/architecture-phase-1-20261009-130000/meshlink-phase-1.html) is generated from committed TypeScript source and links each component to its supporting lines. Its JSON source and validation receipts live alongside the HTML.

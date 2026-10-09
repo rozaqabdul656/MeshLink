@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "b1f7cbf5-85b9-4b77-aaf9-080647139817",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/rizkiakbarabdulrozaq/Documents/ChatGPT/Opensource/MeshLink/.archify/architecture-phase-1-20261009-130000/candidate.json",
+  "output": "/Users/rizkiakbarabdulrozaq/Documents/ChatGPT/Opensource/MeshLink/.archify/architecture-phase-1-20261009-130000/meshlink-phase-1.html",
+  "specification": {
+    "sha256": "70f237e5a130524a8bcb50a5568c6da5c4ac521747eadee186c8a1cc548a6bb1",
+    "bytes": 4099
+  },
+  "artifact": {
+    "sha256": "a09a409e5ce922f24f7651c177a4322d31ba2d5393e3ff45fab62239efed6331",
+    "bytes": 757767
+  }
+}

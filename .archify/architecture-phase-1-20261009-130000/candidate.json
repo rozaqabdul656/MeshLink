@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "MeshLink Phase 1 — policy-enforced agent task flow",
+    "subtitle": "MCP is an entry point; each node owns authorization and execution.",
+    "output": ".archify/architecture-phase-1-20261009-130000/meshlink-phase-1.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/rozaqabdul656/MeshLink.git",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "f5cdb8ff356133c40af5e52e552f9db4724a696c"
+    }
+  },
+  "components": [
+    {
+      "id": "agent-host",
+      "type": "external",
+      "label": "MCP-capable agent host",
+      "sublabel": "Codex, Claude, Gemini, or custom host",
+      "pos": [40, 280],
+      "size": [180, 72],
+      "sources": [{ "path": "src/cli.ts", "line": 60, "end_line": 86, "label": "MCP tools" }]
+    },
+    {
+      "id": "mcp-adapter",
+      "type": "backend",
+      "label": "MeshLink MCP adapter",
+      "sublabel": "find agents · send task · get status",
+      "pos": [310, 280],
+      "size": [190, 72],
+      "sources": [{ "path": "src/cli.ts", "line": 55, "end_line": 88, "label": "MCP bridge" }]
+    },
+    {
+      "id": "mesh-node",
+      "type": "backend",
+      "label": "MeshLink Node",
+      "sublabel": "versioned HTTP task API",
+      "pos": [600, 280],
+      "size": [170, 72],
+      "sources": [{ "path": "src/http.ts", "line": 17, "end_line": 45, "label": "HTTP API" }, { "path": "src/node.ts", "line": 38, "end_line": 68, "label": "task lifecycle" }]
+    },
+    {
+      "id": "policy",
+      "type": "security",
+      "label": "Local policy evaluator",
+      "sublabel": "deny · allow · approval",
+      "pos": [600, 105],
+      "size": [170, 72],
+      "sources": [{ "path": "src/node.ts", "line": 52, "end_line": 67, "label": "policy gate" }]
+    },
+    {
+      "id": "capability-handler",
+      "type": "backend",
+      "label": "Local capability handler",
+      "sublabel": "service.diagnostics sample",
+      "pos": [870, 280],
+      "size": [180, 72],
+      "sources": [{ "path": "src/cli.ts", "line": 22, "end_line": 35, "label": "handler registration" }, { "path": "src/node.ts", "line": 76, "end_line": 100, "label": "handler execution" }]
+    },
+    {
+      "id": "audit-log",
+      "type": "database",
+      "label": "In-memory task and audit store",
+      "sublabel": "Phase 1; persistent store in Phase 2",
+      "pos": [600, 455],
+      "size": [190, 72],
+      "sources": [{ "path": "src/node.ts", "line": 9, "end_line": 12, "label": "stores" }, { "path": "src/node.ts", "line": 102, "end_line": 120, "label": "audit recording" }]
+    }
+  ],
+  "boundaries": [
+    { "kind": "security-group", "label": "Destination environment — policy and tools stay local", "wraps": ["mesh-node", "policy", "capability-handler", "audit-log"] }
+  ],
+  "connections": [
+    { "id": "agent-to-adapter", "from": "agent-host", "to": "mcp-adapter", "label": "MCP tool call", "variant": "emphasis" },
+    { "id": "adapter-to-node", "from": "mcp-adapter", "to": "mesh-node", "label": "meshlink/v1 task", "variant": "emphasis" },
+    { "id": "node-to-policy", "from": "mesh-node", "to": "policy", "label": "evaluate caller + capability", "variant": "security", "fromSide": "top", "toSide": "bottom" },
+    { "id": "node-to-handler", "from": "mesh-node", "to": "capability-handler", "label": "only when allowed", "variant": "security" },
+    { "id": "node-to-audit", "from": "mesh-node", "to": "audit-log", "label": "task + lifecycle audit", "fromSide": "bottom", "toSide": "top" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Stable contract", "items": ["All task callers use meshlink/v1", "Future adapters add optional fields instead of replacing the contract"] },
+    { "dot": "rose", "title": "Security boundary", "items": ["MCP adapter never bypasses destination policy", "Remote callers receive task results, not shell or filesystem access"] },
+    { "dot": "emerald", "title": "Phase 2 direction", "items": ["Signed identities and cross-server routing", "Persistent task and audit stores"] }
+  ]
+}
