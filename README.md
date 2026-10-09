@@ -53,7 +53,19 @@ The MCP adapter is an entry point only. It cannot bypass policy on the receiving
 
 ## Dashboard
 
-Open `http://127.0.0.1:8400/` while a node is running. The dashboard is deliberately read-only in Phase 1: it visualizes local state but cannot edit policies or approve actions. Those write operations require authenticated admin identities in Phase 2.
+Set a local dashboard password before starting a node:
+
+```bash
+export MESHLINK_DASHBOARD_PASSWORD='replace-this-before-network-exposure'
+npm run dev:node -- --name vps-observer --id vps-observer --port 8400 --policy examples/policy.yaml
+```
+
+Open `http://127.0.0.1:8400/` and sign in. If the variable is unset, local development falls back to `meshlink` and logs a warning. Never use that fallback on a network-exposed node. Sessions are in-memory, expire after one hour, and use `HttpOnly`/`SameSite=Strict` cookies; restart invalidates them.
+
+Phase 2.1 dashboard is local, read-only, and separate from agent identity. Login does not authorize task senders, edit policy, register agents, or approve tasks. The node still binds to loopback by default. Do not expose it beyond a private network until signed agent identity, authenticated transport, durable audit storage, and authenticated approvals are implemented.
+
+The dashboard escapes agent, task, and audit values as text. Unauthenticated dashboard pages/data return `401`; existing Phase 1 task and MCP APIs keep their original caller-header behavior.
+
 
 ## Policy
 
