@@ -3,6 +3,7 @@ import type { AgentCard, AuditEvent, Task, TaskRequest, TaskResult } from "./con
 import { PROTOCOL_VERSION } from "./contracts.js";
 import type { PolicyDocument } from "./policy.js";
 import { evaluatePolicy } from "./policy.js";
+import { AgentRegistry } from "./registry.js";
 
 export type TaskHandler = (request: TaskRequest) => Promise<TaskResult>;
 
@@ -10,6 +11,7 @@ export class MeshNode {
   private readonly tasks = new Map<string, Task>();
   private readonly audit: AuditEvent[] = [];
   private readonly handlers = new Map<string, TaskHandler>();
+  public readonly registry = new AgentRegistry();
 
   public constructor(
     public readonly card: AgentCard,

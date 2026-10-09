@@ -35,7 +35,16 @@ export function createHttpServer(node: MeshNode): http.Server {
       if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/dashboard")) return sendDashboard(response, "index.html");
       if (request.method === "GET" && url.pathname.startsWith("/dashboard/")) return sendDashboard(response, url.pathname.slice("/dashboard/".length));
       if (request.method === "GET" && url.pathname === "/health") return send(response, 200, { ok: true, protocolVersion: PROTOCOL_VERSION });
-      if (request.method === "GET" && url.pathname === "/v1/agents") return send(response, 200, { agents: node.listAgents() });
+      if (request.method === "GET" && url.pathname === "/v1/agents") return send(response, 200, { agents: [...node.listAgents(), ...node.registry.list()] });
+      if (request.method === "POST" && url.pathname === "/v1/agents") {
+        const card = await body(request);
+        node.registry.upsert(card as import("./contracts.js").AgentCard);
+        return send(response, 201, { ok: true });
+      }
+      if (request.method === "GET" && url.pathname === "/v1/agents/capability") {
+        const capability = url.searchParams.get("capability") ?? "";
+        return send(response, 200, { agents: node.registry.list().filter((agent) => agent.status === "available" && agent.capabilities.includes(capability)) });
+      }
       if (request.method === "GET" && url.pathname === "/v1/tasks") return send(response, 200, { tasks: node.listTasks() });
       if (request.method === "GET" && url.pathname === "/v1/audit") return send(response, 200, { events: node.listAudit() });
 
