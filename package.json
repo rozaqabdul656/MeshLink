@@ -1,0 +1,32 @@
+{
+  "name": "meshlink",
+  "version": "0.1.0",
+  "description": "A secure, self-hosted task mesh for agents across environments.",
+  "type": "module",
+  "bin": {
+    "meshlink": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev:node": "tsx src/cli.ts node",
+    "dev:mcp": "tsx src/cli.ts mcp",
+    "start": "node dist/cli.js node",
+    "test": "tsx --test test/**/*.test.ts",
+    "check": "tsc --noEmit -p tsconfig.json"
+  },
+  "keywords": ["ai-agents", "mcp", "a2a", "agent-mesh", "self-hosted"],
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "yaml": "^2.8.2",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}

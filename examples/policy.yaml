@@ -1,0 +1,11 @@
+version: 1
+default: deny
+rules:
+  - caller: agent://local-host
+    capabilities:
+      - service.diagnostics
+    decision: allow
+  - caller: agent://local-host
+    capabilities:
+      - service.restart
+    decision: approval
