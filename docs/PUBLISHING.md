@@ -4,14 +4,15 @@ MeshLink is published from GitHub Actions through [npm Trusted Publishing](https
 
 ## One-time setup
 
-1. Make sure the `@meshlink-ai/meshlink` package on npm belongs to the intended npm account or organization. If this is the first release, publish the initial version manually from a trusted local machine with npm 2FA enabled.
-2. In the npm package settings, add a **GitHub Actions** trusted publisher:
+1. Make sure the `@meshlink-ai/meshlink` package belongs to the `meshlink-ai` npm organization. The initial `1.0.0` release is published manually with npm 2FA; later releases use GitHub Actions.
+2. In [npm package settings](https://www.npmjs.com/package/@meshlink-ai/meshlink/access), add a **GitHub Actions** trusted publisher:
    - Owner: `rozaqabdul656`
    - Repository: `MeshLink`
    - Workflow filename: `publish.yml`
-3. Keep the trusted publisher's first successful publish within npm's setup window. GitHub-hosted runners are required for this OIDC flow.
+   - Allowed action: **Publish packages**
+3. Use GitHub-hosted runners. GitHub Actions is not supported for npm trusted publishing from a self-hosted runner.
 
-The workflow already has the required permissions: `contents: read` and `id-token: write`.
+The workflow already has the required permissions: `contents: read` and `id-token: write`. Do **not** add an `NPM_TOKEN` GitHub secret: npm exchanges the job's short-lived GitHub OIDC identity for publish access.
 
 ## Release process
 
@@ -26,6 +27,6 @@ The `v*` tag triggers `.github/workflows/publish.yml`. The workflow validates th
 
 Use `npm version minor` or `npm version major` for larger releases. Do not create a tag by hand with a version that differs from `package.json`; the workflow will deliberately reject it.
 
-## Manual retry
+## Retry a failed release
 
-If a release needs a retry, open **Actions → Publish npm package → Run workflow**, select the exact release tag, and run it again after fixing the cause. npm will reject publishing an already-published version; bump the version if the package itself needs to change.
+If a release job fails, open **Actions → Publish npm package**, select the failed run for the release tag, and choose **Re-run jobs** after fixing the cause. The workflow safely skips a version that is already available on npm. Bump the version when the package itself needs to change.
