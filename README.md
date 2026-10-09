@@ -24,6 +24,26 @@ meshlink
 
 🎉 Dashboard opens at `http://localhost:20128`.
 
+## Release to npm
+
+MeshLink publishes through GitHub Actions when a version tag is pushed. It uses npm Trusted Publishing (OIDC), so the repository never needs to store an `NPM_TOKEN` secret.
+
+Before the first automated release, configure this once in the npm package settings:
+
+- Trusted publisher: **GitHub Actions**
+- GitHub owner: `rozaqabdul656`
+- Repository: `MeshLink`
+- Workflow filename: `publish.yml`
+
+Then release a version whose tag matches `package.json` exactly:
+
+```bash
+npm version patch
+git push --follow-tags
+```
+
+For example, version `0.1.1` must be released as tag `v0.1.1`. GitHub runs tests, builds the package, and publishes it to npm. See [the release guide](docs/PUBLISHING.md) for the first-release setup and troubleshooting.
+
 Until the first npm release is published, install the current GitHub version instead:
 
 ```bash

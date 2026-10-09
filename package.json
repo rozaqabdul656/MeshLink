@@ -2,6 +2,18 @@
   "name": "meshlink",
   "version": "0.1.0",
   "description": "A secure, self-hosted task mesh for agents across environments.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rozaqabdul656/MeshLink.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rozaqabdul656/MeshLink/issues"
+  },
+  "homepage": "https://github.com/rozaqabdul656/MeshLink#readme",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
   "type": "module",
   "bin": {
     "meshlink": "./dist/cli.js"
