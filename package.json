@@ -1,6 +1,6 @@
 {
-  "name": "meshlink",
-  "version": "0.1.0",
+  "name": "@meshlink-ai/meshlink",
+  "version": "1.0.0",
   "description": "A secure, self-hosted task mesh for agents across environments.",
   "repository": {
     "type": "git",
@@ -16,7 +16,7 @@
   },
   "type": "module",
   "bin": {
-    "meshlink": "./dist/cli.js"
+    "meshlink": "dist/cli.js"
   },
   "files": [
     "dist",

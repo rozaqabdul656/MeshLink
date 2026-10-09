@@ -18,7 +18,7 @@ See [the Phase 1 architecture](docs/ARCHITECTURE.md) and [the compatibility road
 ## Install globally
 
 ```bash
-npm install -g meshlink
+npm install -g @meshlink-ai/meshlink
 meshlink
 ```
 

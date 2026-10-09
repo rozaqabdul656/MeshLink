@@ -41,5 +41,10 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Publish to npm
-        run: npm publish
+      - name: Publish to npm when this version is new
+        run: |
+          if npm view "${npm_package_name}@${npm_package_version}" version --registry=https://registry.npmjs.org >/dev/null 2>&1; then
+            echo "${npm_package_name}@${npm_package_version} is already published; skipping."
+          else
+            npm publish
+          fi

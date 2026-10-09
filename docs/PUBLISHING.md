@@ -4,7 +4,7 @@ MeshLink is published from GitHub Actions through [npm Trusted Publishing](https
 
 ## One-time setup
 
-1. Make sure the `meshlink` package on npm belongs to the intended npm account or organization. If this is the first release, publish the initial version manually from a trusted local machine with npm 2FA enabled.
+1. Make sure the `@meshlink-ai/meshlink` package on npm belongs to the intended npm account or organization. If this is the first release, publish the initial version manually from a trusted local machine with npm 2FA enabled.
 2. In the npm package settings, add a **GitHub Actions** trusted publisher:
    - Owner: `rozaqabdul656`
    - Repository: `MeshLink`
