@@ -29,7 +29,9 @@ jobs:
         run: npm ci
 
       - name: Verify release tag matches package version
-        run: test "v$(node -p \"require('./package.json').version\")" = "$GITHUB_REF_NAME"
+        run: |
+          package_version=$(node -p "require('./package.json').version")
+          test "v${package_version}" = "$GITHUB_REF_NAME"
 
       - name: Type-check
         run: npm run check
