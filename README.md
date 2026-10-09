@@ -221,7 +221,9 @@ Open `http://127.0.0.1:8400/` and sign in. If the variable is unset, local devel
 
 Phase 2.1 dashboard is local, read-only, and separate from agent identity. Login does not authorize task senders, edit policy, register agents, or approve tasks. The node still binds to loopback by default. Do not expose it beyond a private network until signed agent identity, authenticated transport, durable audit storage, and authenticated approvals are implemented.
 
-The dashboard escapes agent, task, and audit values as text. Unauthenticated dashboard pages/data return `401`; existing Phase 1 task and MCP APIs keep their original caller-header behavior.
+The dashboard escapes agent, task, and audit values as text. Unauthenticated dashboard pages redirect to `/login`; unauthenticated dashboard APIs return `401`, and the frontend redirects back to `/login` when a session expires. Existing Phase 1 task and MCP APIs keep their original caller-header behavior.
+
+Frontend API configuration is optional. `MESHLINK_DASHBOARD_API_BASE` defaults to same-origin (`""`) when unset. Set it only when serving the dashboard through a deliberate API proxy; values are emitted as JSON in a no-store config response, not interpolated into HTML.
 
 ## Policy
 

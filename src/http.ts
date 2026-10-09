@@ -56,7 +56,22 @@ export function createHttpServer(node: MeshNode): http.Server {
         response.writeHead(303, { location: "/", "set-cookie": result.cookie }); response.end(); return;
       }
       if (request.method === "POST" && url.pathname === "/logout") { response.writeHead(303, { location: "/login", "set-cookie": auth.clearCookie }); response.end(); return; }
-      if (dashboardPath && !auth.valid(token(request))) { send(response, 401, { error: "DASHBOARD_AUTH_REQUIRED", message: "Sign in at /login" }); return; }
+      const dashboardDocument = url.pathname === "/" || url.pathname === "/dashboard";
+      if (dashboardPath && !auth.valid(token(request))) {
+        if (request.method === "GET" && dashboardDocument) {
+          response.writeHead(303, { location: `/login?next=${encodeURIComponent(url.pathname)}` });
+          response.end();
+          return;
+        }
+        send(response, 401, { error: "DASHBOARD_AUTH_REQUIRED", message: "Sign in at /login" });
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/dashboard/config.js") {
+        const apiBase = process.env.MESHLINK_DASHBOARD_API_BASE ?? "";
+        response.writeHead(200, { "content-type": "application/javascript; charset=utf-8", "cache-control": "no-store" });
+        response.end(`window.__MESHLINK_API_BASE__ = ${JSON.stringify(apiBase)};`);
+        return;
+      }
       if (request.method === "GET" && url.pathname === "/dashboard/api/agents") return send(response, 200, { agents: [...node.listAgents(), ...node.registry.list()] });
       if (request.method === "GET" && url.pathname === "/dashboard/api/tasks") return send(response, 200, { tasks: node.listTasks() });
       if (request.method === "GET" && url.pathname === "/dashboard/api/audit") return send(response, 200, { events: node.listAudit() });
