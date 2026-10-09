@@ -31,6 +31,10 @@ export class MeshNode {
     return this.tasks.get(id);
   }
 
+  public listTasks(): Task[] {
+    return [...this.tasks.values()].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+  }
+
   public listAudit(): AuditEvent[] {
     return [...this.audit];
   }

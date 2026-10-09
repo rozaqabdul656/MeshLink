@@ -10,6 +10,7 @@ Phase 1 intentionally stays small: one HTTP node, capability-scoped tasks, deny-
 - Every task names a caller and capability. The destination node enforces local policy before running its handler.
 - An MCP server exposes `mesh_find_agents`, `mesh_send_task`, and `mesh_get_task` to MCP-capable agent hosts.
 - The included `service.diagnostics` capability is a safe sample handler. Connect Docker, logs, Kubernetes, or your own workflow adapter behind it.
+- A local router-style control dashboard is served at `/` with live node status, agent cards, topology, task lifecycle, and audit events.
 
 See [the Phase 1 architecture](docs/ARCHITECTURE.md) and [the compatibility roadmap](docs/ROADMAP.md).
 
@@ -49,6 +50,10 @@ Point your MCP host at that command. The host receives these tools:
 - `mesh_get_task`
 
 The MCP adapter is an entry point only. It cannot bypass policy on the receiving node.
+
+## Dashboard
+
+Open `http://127.0.0.1:8400/` while a node is running. The dashboard is deliberately read-only in Phase 1: it visualizes local state but cannot edit policies or approve actions. Those write operations require authenticated admin identities in Phase 2.
 
 ## Policy
 

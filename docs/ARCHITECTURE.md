@@ -6,6 +6,8 @@ MeshLink separates the user-facing tool surface from the node that owns security
 MCP-capable Agent → MeshLink MCP adapter → MeshLink Node → capability handler
 ```
 
+The local dashboard is a read-only control-plane view served by the same node. It reads agent cards, task lifecycle, and audit events through the node's HTTP API; it does not bypass the policy boundary or expose mutation controls.
+
 The node is the enforcement point. It creates a versioned task envelope, evaluates local policy, records an audit event, then invokes an installed capability handler only when allowed. A handler is local code owned by the node operator; external agents never receive shell or filesystem access automatically.
 
 The MCP adapter is deliberately thin. It translates MCP tool calls into the stable MeshLink v1 HTTP task contract and does not make policy decisions. That separation lets future entry points—A2A, REST clients, SDKs, CLI, or a web UI—share the same node contract.

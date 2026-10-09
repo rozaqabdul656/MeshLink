@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MeshLink Control Plane</title>
+    <link rel="stylesheet" href="/dashboard/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div class="brand"><span class="brand-mark">M</span><span>MeshLink</span></div>
+        <div class="connection"><span id="connection-dot" class="dot"></span><span id="connection">Checking node</span></div>
+      </header>
+      <section class="hero">
+        <div><p class="eyebrow">CONTROL PLANE / PHASE 1</p><h1>See the agent mesh.<br /><em>Keep control local.</em></h1></div>
+        <button id="refresh" class="refresh">Refresh data <span>↻</span></button>
+      </section>
+      <section class="stats" aria-label="Node summary">
+        <article><span>Agents online</span><strong id="agent-count">—</strong><small>Capability registry</small></article>
+        <article><span>Tasks tracked</span><strong id="task-count">—</strong><small>Current node memory</small></article>
+        <article><span>Approval queue</span><strong id="approval-count">—</strong><small>Needs local action</small></article>
+        <article><span>Policy</span><strong>DENY</strong><small>Default posture</small></article>
+      </section>
+      <section class="layout">
+        <article class="panel topology"><div class="panel-heading"><div><p class="eyebrow">TOPOLOGY</p><h2>Node route map</h2></div><span class="pill">LOCAL</span></div>
+          <div id="topology" class="topology-canvas" aria-live="polite"></div>
+          <p class="hint">Tasks enter through an MCP adapter. The destination node owns policy and execution.</p>
+        </article>
+        <article class="panel agents"><div class="panel-heading"><div><p class="eyebrow">AGENT CARDS</p><h2>Available agents</h2></div></div><div id="agents" class="agent-list"></div></article>
+        <article class="panel tasks"><div class="panel-heading"><div><p class="eyebrow">TASK LIFECYCLE</p><h2>Recent tasks</h2></div><button id="task-filter" class="text-button">All status</button></div><div id="tasks" class="task-list"></div></article>
+        <article class="panel audit"><div class="panel-heading"><div><p class="eyebrow">AUDIT TRAIL</p><h2>Policy events</h2></div></div><ol id="audit" class="audit-list"></ol></article>
+      </section>
+      <footer>Phase 1 is read-only. Policy editing and approvals move to Phase 2 with admin authentication.</footer>
+    </main>
+    <template id="empty"><p class="empty">Nothing recorded yet.</p></template>
+    <script type="module" src="/dashboard/app.js"></script>
+  </body>
+</html>

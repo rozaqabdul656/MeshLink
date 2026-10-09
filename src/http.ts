@@ -1,4 +1,6 @@
 import http from "node:http";
+import fs from "node:fs";
+import path from "node:path";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { PROTOCOL_VERSION, type TaskRequest } from "./contracts.js";
 import { MeshNode } from "./node.js";
@@ -14,12 +16,27 @@ function send(response: ServerResponse, status: number, payload: unknown): void 
   response.end(JSON.stringify(payload));
 }
 
+function sendDashboard(response: ServerResponse, file: string): void {
+  const filePath = path.resolve(process.cwd(), "dashboard", file);
+  if (!filePath.startsWith(path.resolve(process.cwd(), "dashboard")) || !fs.existsSync(filePath)) {
+    response.writeHead(404);
+    response.end("Not found");
+    return;
+  }
+  const types: Record<string, string> = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "application/javascript; charset=utf-8" };
+  response.writeHead(200, { "content-type": types[path.extname(filePath)] ?? "application/octet-stream" });
+  response.end(fs.readFileSync(filePath));
+}
+
 export function createHttpServer(node: MeshNode): http.Server {
   return http.createServer(async (request, response) => {
     try {
       const url = new URL(request.url ?? "/", "http://meshlink.local");
+      if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/dashboard")) return sendDashboard(response, "index.html");
+      if (request.method === "GET" && url.pathname.startsWith("/dashboard/")) return sendDashboard(response, url.pathname.slice("/dashboard/".length));
       if (request.method === "GET" && url.pathname === "/health") return send(response, 200, { ok: true, protocolVersion: PROTOCOL_VERSION });
       if (request.method === "GET" && url.pathname === "/v1/agents") return send(response, 200, { agents: node.listAgents() });
+      if (request.method === "GET" && url.pathname === "/v1/tasks") return send(response, 200, { tasks: node.listTasks() });
       if (request.method === "GET" && url.pathname === "/v1/audit") return send(response, 200, { events: node.listAudit() });
 
       const taskMatch = url.pathname.match(/^\/v1\/tasks\/([^/]+)$/);
