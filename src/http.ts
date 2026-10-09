@@ -1,6 +1,7 @@
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { PROTOCOL_VERSION, type TaskRequest } from "./contracts.js";
 import { MeshNode } from "./node.js";
@@ -23,9 +24,14 @@ function send(response: ServerResponse, status: number, payload: unknown): void 
   response.end(JSON.stringify(payload));
 }
 function sendDashboard(response: ServerResponse, file: string): void {
-  const root = path.resolve(process.cwd(), "dashboard");
-  const filePath = path.resolve(root, file);
-  if (!filePath.startsWith(`${root}${path.sep}`) || !fs.existsSync(filePath)) { response.writeHead(404); response.end("Not found"); return; }
+  // Works from a source checkout and from an npm global installation.
+  const dashboardRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "dashboard");
+  const filePath = path.resolve(dashboardRoot, file);
+  if (!filePath.startsWith(`${dashboardRoot}${path.sep}`) || !fs.existsSync(filePath)) {
+    response.writeHead(404);
+    response.end("Not found");
+    return;
+  }
   const types: Record<string, string> = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "application/javascript; charset=utf-8" };
   response.writeHead(200, { "content-type": types[path.extname(filePath)] ?? "application/octet-stream" }); response.end(fs.readFileSync(filePath));
 }

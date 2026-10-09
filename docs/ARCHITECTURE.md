@@ -34,5 +34,6 @@ Interactive diagrams are generated from committed source and link each component
 
 - [Agent task flow](../.archify/architecture-phase-1-20261009-130000/meshlink-phase-1.html)
 - [Local control dashboard](../.archify/architecture-dashboard-20261009-131500/meshlink-dashboard.html)
+- [Product story: Phase 1 delivered and compatible roadmap](../.archify/architecture-product-story-20261009-160000/meshlink-product-story.html)
 
 Their JSON sources and validation receipts live alongside the HTML artifacts.

@@ -15,7 +15,7 @@ function option(args: string[], name: string, fallback?: string): string | undef
 }
 
 function createNode(args: string[]): MeshNode {
-  const port = option(args, "--port", "8400")!;
+  const port = option(args, "--port", "20128")!;
   const endpoint = option(args, "--endpoint", `http://127.0.0.1:${port}`)!;
   const name = option(args, "--name", "meshlink-node")!;
   const id = option(args, "--id", name)!;
@@ -36,11 +36,11 @@ function createNode(args: string[]): MeshNode {
 }
 
 async function startNode(args: string[]): Promise<void> {
-  const port = Number(option(args, "--port", "8400"));
+  const port = Number(option(args, "--port", "20128"));
   const node = createNode(args);
   const server = createHttpServer(node);
   await new Promise<void>((resolve) => server.listen(port, "127.0.0.1", resolve));
-  process.stdout.write(`MeshLink node ${node.card.id} listening at ${node.card.endpoint}\n`);
+  process.stdout.write(`MeshLink node ${node.card.id} is running.\n🎉 Dashboard opens at ${node.card.endpoint}\n`);
 }
 
 async function sendTask(nodeUrl: string, caller: string, capability: string, instruction: string, readOnly: boolean): Promise<Task> {
@@ -94,9 +94,11 @@ async function startMcp(args: string[]): Promise<void> {
 
 async function main(): Promise<void> {
   const [, , command, ...args] = process.argv;
-  if (command === "node") return startNode(args);
+  if (!command || command === "start") return startNode(args);
+  if (command.startsWith("--")) return startNode([command, ...args]);
+  if (command === "node") return startNode(args[0] === "start" ? args.slice(1) : args);
   if (command === "mcp") return startMcp(args);
-  process.stderr.write("Usage: meshlink <node|mcp> [options]\n");
+  process.stderr.write("Usage: meshlink [start] [--port 20128] | meshlink node start | meshlink mcp\n");
   process.exitCode = 1;
 }
 
