@@ -1,4 +1,5 @@
 import http from "node:http";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -38,6 +39,15 @@ function sendDashboard(response: ServerResponse, file: string): void {
 function token(request: IncomingMessage): string | undefined {
   return request.headers.cookie?.split(";").map((part) => part.trim()).find((part) => part.startsWith("meshlink_session="))?.slice("meshlink_session=".length);
 }
+function registrationAllowed(request: IncomingMessage): boolean {
+  const expected = process.env.MESHLINK_REGISTRATION_TOKEN;
+  if (!expected) return true;
+  const supplied = request.headers["x-meshlink-registration-token"];
+  if (typeof supplied !== "string") return false;
+  const left = Buffer.from(expected);
+  const right = Buffer.from(supplied);
+  return left.length === right.length && crypto.timingSafeEqual(left, right);
+}
 function loginPage(warning: boolean): string { return `<!doctype html><meta charset="utf-8"><title>MeshLink login</title><main><h1>MeshLink dashboard</h1>${warning ? '<p role="alert">Default password is meshlink. Set MESHLINK_DASHBOARD_PASSWORD before network exposure.</p>' : ""}<form method="post" action="/login"><label>Password <input name="password" type="password" required autofocus></label><button>Sign in</button></form></main>`; }
 
 export function createHttpServer(node: MeshNode): http.Server {
@@ -72,6 +82,7 @@ export function createHttpServer(node: MeshNode): http.Server {
         response.end(`window.__MESHLINK_API_BASE__ = ${JSON.stringify(apiBase)};`);
         return;
       }
+      if (request.method === "GET" && url.pathname === "/dashboard/api/node") return send(response, 200, { node: node.card });
       if (request.method === "GET" && url.pathname === "/dashboard/api/agents") return send(response, 200, { agents: [...node.listAgents(), ...node.registry.list()] });
       if (request.method === "GET" && url.pathname === "/dashboard/api/tasks") return send(response, 200, { tasks: node.listTasks() });
       if (request.method === "GET" && url.pathname === "/dashboard/api/audit") return send(response, 200, { events: node.listAudit() });
@@ -79,7 +90,19 @@ export function createHttpServer(node: MeshNode): http.Server {
       if (request.method === "GET" && url.pathname.startsWith("/dashboard/")) return sendDashboard(response, url.pathname.slice("/dashboard/".length));
       if (request.method === "GET" && url.pathname === "/health") return send(response, 200, { ok: true, protocolVersion: PROTOCOL_VERSION });
       if (request.method === "GET" && url.pathname === "/v1/agents") return send(response, 200, { agents: [...node.listAgents(), ...node.registry.list()] });
-      if (request.method === "POST" && url.pathname === "/v1/agents") { node.registry.upsert(await body(request) as import("./contracts.js").AgentCard); return send(response, 201, { ok: true }); }
+      if (request.method === "POST" && url.pathname === "/v1/agents") {
+        if (!registrationAllowed(request)) return send(response, 401, { error: "REGISTRATION_TOKEN_REQUIRED" });
+        const payload = await body(request) as import("./contracts.js").AgentCard | { card: import("./contracts.js").AgentCard; leaseSeconds?: number };
+        const card = "card" in payload ? payload.card : payload;
+        const leaseSeconds = "card" in payload ? payload.leaseSeconds : undefined;
+        const registered = node.registerRemote(card, leaseSeconds);
+        return send(response, 201, { ok: true, agent: registered });
+      }
+      const agentMatch = url.pathname.match(/^\/v1\/agents\/([^/]+)$/);
+      if (request.method === "DELETE" && agentMatch) {
+        if (!registrationAllowed(request)) return send(response, 401, { error: "REGISTRATION_TOKEN_REQUIRED" });
+        return node.registry.remove(agentMatch[1]) ? send(response, 204, undefined) : send(response, 404, { error: "AGENT_NOT_FOUND" });
+      }
       if (request.method === "GET" && url.pathname === "/v1/agents/capability") { const capability = url.searchParams.get("capability") ?? ""; return send(response, 200, { agents: node.registry.list().filter((agent) => agent.status === "available" && agent.capabilities.includes(capability)) }); }
       if (request.method === "GET" && url.pathname === "/v1/tasks") return send(response, 200, { tasks: node.listTasks() });
       if (request.method === "GET" && url.pathname === "/v1/audit") return send(response, 200, { events: node.listAudit() });
