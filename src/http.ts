@@ -28,6 +28,11 @@ function send(response: ServerResponse, status: number, payload: unknown): void 
   response.writeHead(status, { "content-type": "application/json; charset=utf-8" });
   response.end(JSON.stringify(payload));
 }
+function page<T>(items: T[], url: URL, field = "tasks"): Record<string, unknown> {
+  const limit = Math.min(100, Math.max(1, Number.parseInt(url.searchParams.get("limit") ?? "50", 10) || 50));
+  const cursor = Math.max(0, Number.parseInt(url.searchParams.get("cursor") ?? "0", 10) || 0);
+  return { [field]: items.slice(cursor, cursor + limit), nextCursor: cursor + limit < items.length ? String(cursor + limit) : undefined };
+}
 function sendDashboard(response: ServerResponse, file: string): void {
   // Works from a source checkout and from an npm global installation.
   const dashboardRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "dashboard");
@@ -72,14 +77,14 @@ export function createHttpServer(node: MeshNode, options: { networkExposed?: boo
   if (configured.fallback) process.stderr.write("Warning: MESHLINK_DASHBOARD_PASSWORD unset; default password meshlink must not be used on a network-exposed node.\n");
   return http.createServer(async (request, response) => {
     try {
-      const authenticatePeer = async (permission?: PeerPermission): Promise<{ caller: string } | undefined> => {
+      const authenticatePeer = async (permission?: PeerPermission): Promise<{ caller: string; kid?: string; signature?: string; timestamp?: string } | undefined> => {
         if (!verifier) return insecureDev ? { caller: typeof request.headers["x-meshlink-agent"] === "string" ? request.headers["x-meshlink-agent"] : "agent://local-dev" } : undefined;
         const parsed = await body(request);
         const result = verifier.verify(request.method ?? "", new URL(request.url ?? "/", "http://meshlink.local").pathname, request.headers, parsed.raw);
-        if (!result.ok) { send(response, 401, { error: result.code }); return undefined; }
-        if (permission && !verifier.allows(result.caller, permission)) { send(response, 403, { error: "SCOPE_FORBIDDEN" }); return undefined; }
+        if (!result.ok) { node.recordSecurity(typeof request.headers["x-meshlink-agent"] === "string" ? request.headers["x-meshlink-agent"] : "unknown", result.code); send(response, 401, { error: result.code }); return undefined; }
+        if (permission && !verifier.allows(result.caller, permission)) { node.recordSecurity(result.caller, `SCOPE_FORBIDDEN:${permission}`); send(response, 403, { error: "SCOPE_FORBIDDEN" }); return undefined; }
         (request as IncomingMessage & { meshlinkBody?: ParsedBody }).meshlinkBody = parsed;
-        return { caller: result.caller };
+        return { caller: result.caller, kid: result.kid, signature: result.signature, timestamp: result.timestamp };
       };
       const parsedBody = async (): Promise<ParsedBody> => (request as IncomingMessage & { meshlinkBody?: ParsedBody }).meshlinkBody ?? body(request);
       const url = new URL(request.url ?? "/", "http://meshlink.local");
@@ -119,14 +124,14 @@ export function createHttpServer(node: MeshNode, options: { networkExposed?: boo
         response.end(`window.__MESHLINK_API_BASE__ = ${JSON.stringify(apiBase)};`);
         return;
       }
-      if (request.method === "GET" && url.pathname === "/dashboard/api/node") return send(response, 200, { node: node.card });
+      if (request.method === "GET" && url.pathname === "/dashboard/api/node") return send(response, 200, { node: node.card, security: { identity: verifier ? "signed-ed25519" : "local-insecure", transport: options.networkExposed ? "network" : "loopback", persistence: node.persistenceKind() } });
       if (request.method === "GET" && url.pathname === "/dashboard/api/nodes") return send(response, 200, { nodes: [...node.listAgents(), ...node.registry.list()] });
       if (request.method === "GET" && url.pathname === "/dashboard/api/agents") return send(response, 200, { agents: [...node.listAgents(), ...node.registry.list()] });
       if (request.method === "GET" && url.pathname === "/dashboard/api/tasks") return send(response, 200, { tasks: node.listTasks() });
       if (request.method === "GET" && url.pathname === "/dashboard/api/audit") return send(response, 200, { events: node.listAudit() });
       if (request.method === "GET" && dashboardDocument) return sendDashboard(response, dashboardPages[url.pathname]);
       if (request.method === "GET" && url.pathname.startsWith("/dashboard/")) return sendDashboard(response, url.pathname.slice("/dashboard/".length));
-      if (request.method === "GET" && url.pathname === "/health") return send(response, 200, { ok: true, protocolVersion: PROTOCOL_VERSION });
+      if (request.method === "GET" && url.pathname === "/health") return send(response, 200, { ok: true, protocolVersion: PROTOCOL_VERSION, identity: verifier ? "signed-ed25519" : "local-insecure", transport: options.networkExposed ? "network" : "loopback", persistence: node.persistenceKind() });
       if (request.method === "GET" && url.pathname === "/v1/agents") { if (!await authenticatePeer("registry.read")) return; return send(response, 200, { agents: [...node.listAgents(), ...node.registry.list()] }); }
       if (request.method === "POST" && url.pathname === "/v1/agents") {
         if (!await authenticatePeer("registry.write")) return;
@@ -134,7 +139,7 @@ export function createHttpServer(node: MeshNode, options: { networkExposed?: boo
         const payload = (await parsedBody()).value as import("./contracts.js").AgentCard | { card: import("./contracts.js").AgentCard; leaseSeconds?: number };
         const card = "card" in payload ? payload.card : payload;
         const leaseSeconds = "card" in payload ? payload.leaseSeconds : undefined;
-        if (!insecureDev) assertAllowedAgentEndpoint(card.endpoint, allowedAgentEndpoints);
+        assertAllowedAgentEndpoint(card.endpoint, allowedAgentEndpoints, insecureDev);
         const registered = node.registerRemote(card, leaseSeconds);
         return send(response, 201, { ok: true, agent: registered });
       }
@@ -145,12 +150,18 @@ export function createHttpServer(node: MeshNode, options: { networkExposed?: boo
         return node.registry.remove(agentMatch[1]) ? send(response, 204, undefined) : send(response, 404, { error: "AGENT_NOT_FOUND" });
       }
       if (request.method === "GET" && url.pathname === "/v1/agents/capability") { if (!await authenticatePeer("registry.read")) return; const capability = url.searchParams.get("capability") ?? ""; return send(response, 200, { agents: node.registry.list().filter((agent) => agent.status === "available" && agent.capabilities.includes(capability)) }); }
-      if (request.method === "GET" && url.pathname === "/v1/tasks") { const peer = await authenticatePeer(); if (!peer) return; return send(response, 200, { tasks: verifier?.allows(peer.caller, "task.read") ? node.listTasks() : node.listTasks().filter((task) => task.request.caller === peer.caller) }); }
-      if (request.method === "GET" && url.pathname === "/v1/audit") { if (!await authenticatePeer("audit.read")) return; return send(response, 200, { events: node.listAudit() }); }
+      if (request.method === "GET" && url.pathname === "/v1/tasks") { const peer = await authenticatePeer(); if (!peer) return; return send(response, 200, page(verifier?.allows(peer.caller, "task.read") ? node.listTasks() : node.listTasks().filter((task) => task.request.caller === peer.caller), url)); }
+      if (request.method === "GET" && url.pathname === "/v1/audit") { if (!await authenticatePeer("audit.read")) return; return send(response, 200, page(node.listAudit(), url, "events")); }
       const taskMatch = url.pathname.match(/^\/v1\/tasks\/([^/]+)$/);
       if (request.method === "GET" && taskMatch) { const peer = await authenticatePeer(); if (!peer) return; const task = node.getTask(taskMatch[1]); if (task && task.request.caller !== peer.caller && !verifier?.allows(peer.caller, "task.read")) return send(response, 403, { error: "TASK_ACCESS_FORBIDDEN" }); return task ? send(response, 200, task) : send(response, 404, { error: "TASK_NOT_FOUND" }); }
       const approvalMatch = url.pathname.match(/^\/v1\/tasks\/([^/]+)\/approve$/);
-      if (request.method === "POST" && approvalMatch) { if (!await authenticatePeer("task.approve")) return; const task = await node.approveTask(approvalMatch[1]); return task ? send(response, 200, task) : send(response, 404, { error: "TASK_NOT_FOUND" }); }
+      if (request.method === "POST" && approvalMatch) {
+        const peer = await authenticatePeer("task.approve"); if (!peer) return;
+        const payload = (await parsedBody()).value as { decision?: string; taskDigest?: string };
+        if (!peer.kid || !peer.signature || !peer.timestamp || payload.decision !== "approve" || typeof payload.taskDigest !== "string") return send(response, 400, { error: "APPROVAL_RECORD_REQUIRED" });
+        const task = await node.approveTask(approvalMatch[1], { actorId: peer.caller, keyId: peer.kid, signature: peer.signature, at: peer.timestamp, taskDigest: payload.taskDigest, decision: "approve" });
+        return task ? send(response, 200, task) : send(response, 404, { error: "TASK_NOT_FOUND" });
+      }
       if (request.method === "POST" && url.pathname === "/v1/tasks") {
         const peer = await authenticatePeer("task.submit"); if (!peer) return;
         const payload = (await parsedBody()).value as Omit<TaskRequest, "caller">;

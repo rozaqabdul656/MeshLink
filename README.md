@@ -296,6 +296,8 @@ export MESHLINK_ALLOWED_AGENT_ENDPOINTS='https://codex.mesh.example,https://qa.m
 
 Permissions are scoped per trusted peer: `task.submit`, `task.read`, `task.approve`, `audit.read`, `registry.read`, and `registry.write`. A task owner can read its own task; accessing other peers' tasks or approving a privileged task requires the corresponding explicit scope. Dashboard login remains separate from node-to-node authorization.
 
+SQLite (`.meshlink/state.db`) is the default durable store and creates its versioned migration metadata before serving work. Supply `--storage /secure/path/meshlink.db` to relocate it. The current release is deliberately single-node persistence; use a managed Postgres-backed deployment only after its asynchronous shared-store adapter and lease semantics are introduced.
+
 The dashboard escapes agent, task, and audit values as text. Unauthenticated dashboard pages redirect to `/login`; unauthenticated dashboard APIs return `401`, and the frontend redirects back to `/login` when a session expires. Dashboard sessions never authorize the node-to-node API.
 
 Frontend API configuration is optional. `MESHLINK_DASHBOARD_API_BASE` defaults to same-origin (`""`) when unset. Set it only when serving the dashboard through a deliberate API proxy; values are emitted as JSON in a no-store config response, not interpolated into HTML.

@@ -1,5 +1,5 @@
-import { randomUUID } from "node:crypto";
-import type { AgentCard, AuditEvent, Task, TaskContext, TaskRequest, TaskResult } from "./contracts.js";
+import { createHash, randomUUID } from "node:crypto";
+import type { AgentCard, ApprovalRecord, AuditEvent, Task, TaskContext, TaskRequest, TaskResult } from "./contracts.js";
 import { PROTOCOL_VERSION } from "./contracts.js";
 import type { PolicyDocument } from "./policy.js";
 import { evaluatePolicy } from "./policy.js";
@@ -59,6 +59,8 @@ export class MeshNode {
     return [...this.audit];
   }
 
+  public persistenceKind(): string { return this.stateStore.constructor.name.replace(/NodeStore$/, "").toLowerCase(); }
+
   public async createTask(request: TaskRequest): Promise<Task> {
     if (request.context && !this.validContext(request.context)) {
       return this.storeRejected(request, "CONTEXT_INVALID", "Context must contain a bounded summary and content-addressed artifact references");
@@ -94,11 +96,25 @@ export class MeshNode {
     return this.run(task);
   }
 
-  public async approveTask(id: string): Promise<Task | undefined> {
+  public async approveTask(id: string, approval: ApprovalRecord): Promise<Task | undefined> {
     const task = this.tasks.get(id);
     if (!task || task.status !== "awaiting_approval") return task;
+    if (approval.decision !== "approve" || approval.taskDigest !== this.taskDigest(task)) {
+      this.record(task, "security_denied", "Approval task digest did not match");
+      return task;
+    }
+    task.approval = approval;
+    this.touch(task);
+    this.record(task, "approved", `${approval.actorId} (${approval.keyId})`);
     return this.run(task);
   }
+
+  public recordSecurity(caller: string, detail: string): void {
+    this.audit.push({ at: new Date().toISOString(), taskId: "security", action: "security_denied", caller, capability: "security", detail });
+    this.persist();
+  }
+
+  public taskDigest(task: Task): string { return createHash("sha256").update(JSON.stringify(task.request)).digest("base64url"); }
 
   private async run(task: Task): Promise<Task> {
     const handler = this.handlers.get(task.request.targetCapability);

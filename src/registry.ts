@@ -1,14 +1,25 @@
+import fs from "node:fs";
+import YAML from "yaml";
 import type { AgentCard } from "./contracts.js";
 
 type RegistryEntry = { card: AgentCard; expiresAt?: number };
 
 /** Network registrations are an SSRF boundary: use exact operator-provided origins. */
-export function assertAllowedAgentEndpoint(endpointValue: string, allowedOrigins: readonly string[]): void {
+export function assertAllowedAgentEndpoint(endpointValue: string, allowedOrigins: readonly string[], allowInsecureHttp = false): void {
   const endpoint = new URL(endpointValue);
-  if (!(["http:", "https:"].includes(endpoint.protocol)) || endpoint.username || endpoint.password || endpoint.search || endpoint.hash || endpoint.pathname !== "/") {
+  if (!(endpoint.protocol === "https:" || (allowInsecureHttp && endpoint.protocol === "http:")) || endpoint.username || endpoint.password || endpoint.search || endpoint.hash || endpoint.pathname !== "/") {
     throw new Error("Invalid MeshLink agent endpoint");
   }
   if (!allowedOrigins.includes(endpoint.origin)) throw new Error("Agent endpoint is not allowlisted in MESHLINK_ALLOWED_AGENT_ENDPOINTS");
+}
+
+export function loadStaticRegistry(filePath?: string): AgentCard[] {
+  if (!filePath) return [];
+  const parsed = YAML.parse(fs.readFileSync(filePath, "utf8")) as { agents?: AgentCard[] };
+  if (!Array.isArray(parsed?.agents)) throw new Error("Registry config must contain an agents array");
+  const registry = new AgentRegistry();
+  for (const card of parsed.agents) registry.upsert(card);
+  return registry.list();
 }
 
 export class AgentRegistry {
