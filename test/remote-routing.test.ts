@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { PROTOCOL_VERSION, type AgentCard } from "../src/contracts.js";
-import { AgentRegistry, findAgentsByCapability } from "../src/registry.js";
+import { AgentRegistry, assertAllowedAgentEndpoint, findAgentsByCapability } from "../src/registry.js";
 import { routeTask } from "../src/routing.js";
 
 const remote: AgentCard = {
@@ -22,6 +22,12 @@ test("registry rejects malformed, duplicate, and non-root endpoints", () => {
   registry.upsert(remote);
   assert.throws(() => registry.upsert(remote), /already registered/);
   assert.throws(() => registry.upsert({ ...remote, id: "node-c", capabilities: "bad" as unknown as string[] }), /Invalid MeshLink agent card/);
+});
+
+test("secure registration only accepts exact allowlisted origins", () => {
+  assert.doesNotThrow(() => assertAllowedAgentEndpoint("https://worker.mesh.example/", ["https://worker.mesh.example"]));
+  assert.throws(() => assertAllowedAgentEndpoint("https://worker.mesh.example.evil.test/", ["https://worker.mesh.example"]), /allowlisted/);
+  assert.throws(() => assertAllowedAgentEndpoint("https://worker.mesh.example/path", ["https://worker.mesh.example"]), /Invalid/);
 });
 
 test("registry renews a leased node without creating duplicate cards", () => {

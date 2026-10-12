@@ -1,6 +1,7 @@
 import { createHash, createPrivateKey, createPublicKey, randomUUID, sign, verify } from "node:crypto";
 
-export type TrustedAgent = { id: string; kid: string; publicKey: string };
+export type PeerPermission = "task.submit" | "task.read" | "task.approve" | "audit.read" | "registry.read" | "registry.write";
+export type TrustedAgent = { id: string; kid: string; publicKey: string; permissions?: PeerPermission[] };
 export type SigningIdentity = { id: string; kid: string; privateKey: string };
 const maxAgeMs = 5 * 60_000;
 
@@ -30,7 +31,7 @@ export class RequestVerifier {
     const raw = process.env.MESHLINK_TRUSTED_AGENTS;
     if (!raw) return undefined;
     const parsed = JSON.parse(raw) as TrustedAgent[];
-    if (!Array.isArray(parsed) || !parsed.every((entry) => entry && typeof entry.id === "string" && typeof entry.kid === "string" && typeof entry.publicKey === "string")) throw new Error("MESHLINK_TRUSTED_AGENTS must be a JSON array of trusted Ed25519 public keys");
+    if (!Array.isArray(parsed) || !parsed.every((entry) => entry && typeof entry.id === "string" && typeof entry.kid === "string" && typeof entry.publicKey === "string" && (entry.permissions === undefined || (Array.isArray(entry.permissions) && entry.permissions.every((permission) => typeof permission === "string"))))) throw new Error("MESHLINK_TRUSTED_AGENTS must be a JSON array of trusted Ed25519 public keys");
     return new RequestVerifier(parsed);
   }
   public verify(method: string, pathname: string, headers: Record<string, string | string[] | undefined>, body: string): { ok: true; caller: string } | { ok: false; code: string } {
@@ -43,5 +44,9 @@ export class RequestVerifier {
     const valid = verify(null, canonical(method, pathname, caller as string, kid as string, timestamp as string, requestId as string, body), createPublicKey(trusted.publicKey), Buffer.from(signature as string, "base64url"));
     if (!valid) return { ok: false, code: "SIGNATURE_INVALID" };
     this.used.set(requestId as string, Date.now() + maxAgeMs); return { ok: true, caller: caller as string };
+  }
+
+  public allows(caller: string, permission: PeerPermission): boolean {
+    return this.trusted.some((entry) => entry.id === caller && entry.permissions?.includes(permission));
   }
 }
