@@ -4,6 +4,7 @@ import { PROTOCOL_VERSION } from "./contracts.js";
 import type { PolicyDocument } from "./policy.js";
 import { evaluatePolicy } from "./policy.js";
 import { AgentRegistry } from "./registry.js";
+import { MemoryNodeStore, type NodeStore } from "./store.js";
 
 export type TaskHandler = (request: TaskRequest) => Promise<TaskResult>;
 
@@ -16,7 +17,20 @@ export class MeshNode {
   public constructor(
     public readonly card: AgentCard,
     private readonly policy: PolicyDocument,
-  ) {}
+    private readonly stateStore: NodeStore = new MemoryNodeStore(),
+  ) {
+    const snapshot = stateStore.load();
+    for (const task of snapshot.tasks) this.tasks.set(task.id, task);
+    this.audit.push(...snapshot.audit);
+    for (const task of this.tasks.values()) {
+      if (task.status !== "working") continue;
+      task.status = "failed";
+      task.error = { code: "WORKER_INTERRUPTED", message: "Worker stopped before this task completed; it was not retried automatically" };
+      this.touch(task);
+      this.audit.push({ at: new Date().toISOString(), taskId: task.id, action: "failed", caller: task.request.caller, capability: task.request.targetCapability, detail: "Recovered after worker interruption" });
+    }
+    this.persist();
+  }
 
   public register(capability: string, handler: TaskHandler): void {
     if (!this.card.capabilities.includes(capability)) {
@@ -111,6 +125,7 @@ export class MeshNode {
 
   private store(task: Task): Task {
     this.tasks.set(task.id, task);
+    this.persist();
     return task;
   }
 
@@ -123,9 +138,12 @@ export class MeshNode {
     return task;
   }
 
-  private touch(task: Task): void { task.updatedAt = new Date().toISOString(); }
+  private touch(task: Task): void { task.updatedAt = new Date().toISOString(); this.persist(); }
 
   private record(task: Task, action: AuditEvent["action"], detail?: string): void {
     this.audit.push({ at: new Date().toISOString(), taskId: task.id, action, caller: task.request.caller, capability: task.request.targetCapability, detail });
+    this.persist();
   }
+
+  private persist(): void { this.stateStore.save({ tasks: [...this.tasks.values()], audit: this.audit }); }
 }
