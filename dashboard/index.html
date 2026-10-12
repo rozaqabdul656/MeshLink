@@ -11,7 +11,7 @@
       <aside class="sidebar">
         <div class="brand"><span class="brand-mark">M</span><span>MeshLink</span></div>
         <p class="workspace">PRIVATE MESH / PHASE 1</p>
-        <nav aria-label="Control plane navigation"><a class="nav-link active" href="#overview">Overview</a><a class="nav-link" href="#nodes">Nodes <span id="sidebar-node-count">—</span></a><a class="nav-link" href="#history">Task history</a><a class="nav-link" href="#audit-panel">Audit events</a></nav>
+        <nav aria-label="Control plane navigation"><a class="nav-link active" href="/dashboard">Overview</a><a class="nav-link" href="/dashboard/nodes">Nodes <span id="sidebar-node-count">—</span></a><a class="nav-link" href="/dashboard/tasks">Task history</a><a class="nav-link" href="/dashboard/audit">Audit events</a></nav>
         <div class="sidebar-status"><span id="connection-dot" class="dot"></span><div><b id="connection">Checking node</b><small>Local control plane</small></div></div>
         <form method="post" action="/logout"><button class="logout" type="submit">Sign out</button></form>
       </aside>
@@ -27,8 +27,8 @@
           <article class="panel topology"><div class="panel-heading"><div><p class="eyebrow">ROUTING</p><h2>Live task path</h2></div><span class="pill">LOCAL</span></div><div id="topology" class="topology-canvas" aria-live="polite"></div><p class="hint">Every request enters as a scoped task; the destination node owns the policy decision.</p></article>
           <article id="audit-panel" class="panel audit"><div class="panel-heading"><div><p class="eyebrow">LATEST EVENTS</p><h2>Policy audit</h2></div></div><ol id="audit" class="audit-list"></ol></article>
         </section>
-        <section id="nodes" class="panel full-panel"><div class="panel-heading"><div><p class="eyebrow">NODE REGISTRY</p><h2>Connected nodes</h2></div><span id="node-summary" class="pill">LOADING</span></div><div id="agents" class="node-list"></div></section>
-        <section id="history" class="panel full-panel"><div class="panel-heading"><div><p class="eyebrow">TASK HISTORY</p><h2>Requests through this node</h2></div><button id="task-filter" class="text-button">All status</button></div><div id="tasks" class="task-list"></div></section>
+        <section class="panel full-panel"><div class="panel-heading"><div><p class="eyebrow">NODE REGISTRY</p><h2>Connected nodes</h2></div><a class="text-link" href="/dashboard/nodes">Open node registry →</a></div><div id="agents" class="node-list"></div></section>
+        <section class="panel full-panel"><div class="panel-heading"><div><p class="eyebrow">TASK HISTORY</p><h2>Requests through this node</h2></div><a class="text-link" href="/dashboard/tasks">Open history →</a></div><div id="tasks" class="task-list"></div></section>
         <footer>MeshLink Phase 1 · local policies decide execution · dashboard actions are read-only</footer>
       </main>
     </div>

@@ -69,7 +69,11 @@ export function createHttpServer(node: MeshNode): http.Server {
         response.writeHead(303, { location: "/", "set-cookie": result.cookie }); response.end(); return;
       }
       if (request.method === "POST" && url.pathname === "/logout") { response.writeHead(303, { location: "/login", "set-cookie": auth.clearCookie }); response.end(); return; }
-      const dashboardDocument = url.pathname === "/" || url.pathname === "/dashboard";
+      const dashboardPages: Record<string, string> = {
+        "/": "index.html", "/dashboard": "index.html", "/dashboard/nodes": "nodes.html",
+        "/dashboard/tasks": "tasks.html", "/dashboard/audit": "audit.html",
+      };
+      const dashboardDocument = url.pathname in dashboardPages;
       if (dashboardPath && !auth.valid(token(request))) {
         if (request.method === "GET" && dashboardDocument) {
           response.writeHead(303, { location: `/login?next=${encodeURIComponent(url.pathname)}` });
@@ -90,7 +94,7 @@ export function createHttpServer(node: MeshNode): http.Server {
       if (request.method === "GET" && url.pathname === "/dashboard/api/agents") return send(response, 200, { agents: [...node.listAgents(), ...node.registry.list()] });
       if (request.method === "GET" && url.pathname === "/dashboard/api/tasks") return send(response, 200, { tasks: node.listTasks() });
       if (request.method === "GET" && url.pathname === "/dashboard/api/audit") return send(response, 200, { events: node.listAudit() });
-      if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/dashboard")) return sendDashboard(response, "index.html");
+      if (request.method === "GET" && dashboardDocument) return sendDashboard(response, dashboardPages[url.pathname]);
       if (request.method === "GET" && url.pathname.startsWith("/dashboard/")) return sendDashboard(response, url.pathname.slice("/dashboard/".length));
       if (request.method === "GET" && url.pathname === "/health") return send(response, 200, { ok: true, protocolVersion: PROTOCOL_VERSION });
       if (request.method === "GET" && url.pathname === "/v1/agents") return send(response, 200, { agents: [...node.listAgents(), ...node.registry.list()] });

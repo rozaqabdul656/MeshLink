@@ -4,6 +4,7 @@ const $ = (selector) => document.querySelector(selector);
 const api = createApi();
 const empty = () => $("#empty").content.cloneNode(true);
 const text = (value) => document.createTextNode(String(value ?? ""));
+const setText = (selector, value) => { const element = $(selector); if (element) element.textContent = String(value); };
 let taskFilter = "all";
 
 function formatTime(value) {
@@ -18,7 +19,7 @@ function route(className, title, subtitle) {
   item.append(strong, small); return item;
 }
 function renderTopology(node, agents) {
-  const host = $("#topology"); host.replaceChildren(
+  const host = $("#topology"); if (!host) return; host.replaceChildren(
     route("source", "MCP hosts", `${agents.length} discoverable node${agents.length === 1 ? "" : "s"}`),
     route("adapter", "MeshLink adapter", "MCP → task envelope"),
     route("node", node?.name ?? "Local node", node?.endpoint ?? "Waiting for node"),
@@ -28,7 +29,7 @@ function renderTopology(node, agents) {
   ["line line-one", "line line-two"].forEach((className) => { const line = document.createElement("div"); line.className = className; host.append(line); });
 }
 function renderAgents(agents, localId) {
-  const host = $("#agents"); host.replaceChildren();
+  const host = $("#agents"); if (!host) return; host.replaceChildren();
   if (!agents.length) return host.append(empty());
   agents.forEach((agent) => {
     const item = document.createElement("article"); item.className = "agent";
@@ -43,7 +44,7 @@ function renderAgents(agents, localId) {
   });
 }
 function renderTasks(tasks) {
-  const host = $("#tasks"); host.replaceChildren();
+  const host = $("#tasks"); if (!host) return; host.replaceChildren();
   const filtered = taskFilter === "all" ? tasks : tasks.filter((task) => task.status === taskFilter);
   if (!filtered.length) return host.append(empty());
   filtered.slice(0, 6).forEach((task) => {
@@ -56,7 +57,7 @@ function renderTasks(tasks) {
   });
 }
 function renderAudit(events) {
-  const host = $("#audit"); host.replaceChildren(); if (!events.length) return host.append(empty());
+  const host = $("#audit"); if (!host) return; host.replaceChildren(); if (!events.length) return host.append(empty());
   events.slice().reverse().slice(0, 7).forEach((event) => {
     const item = document.createElement("li"); const dot = document.createElement("span"); dot.className = `audit-dot ${event.action}`;
     const copy = document.createElement("div"); const action = document.createElement("b"); action.append(text(event.action.replaceAll("_", " ")));
@@ -65,22 +66,22 @@ function renderAudit(events) {
   });
 }
 async function refresh() {
-  const button = $("#refresh"); button.disabled = true;
+  const button = $("#refresh"); if (button) button.disabled = true;
   try {
     const [health, nodeResponse, agentResponse, taskResponse, auditResponse] = await Promise.all([api("/health"), api("/dashboard/api/node"), api("/dashboard/api/nodes"), api("/dashboard/api/tasks"), api("/dashboard/api/audit")]);
     if (!health.ok) throw new Error("Node unavailable");
     const [{ node }, { nodes: agents }, { tasks }, { events }] = await Promise.all([nodeResponse.json(), agentResponse.json(), taskResponse.json(), auditResponse.json()]);
-    $("#connection").textContent = "Node online"; $("#connection-dot").classList.add("online");
-    $("#agent-count").textContent = agents.filter((agent) => agent.status === "available").length;
-    $("#sidebar-node-count").textContent = agents.length;
-    $("#node-summary").textContent = `${agents.filter((agent) => agent.status === "available").length} ONLINE`;
-    $("#task-count").textContent = tasks.length; $("#approval-count").textContent = tasks.filter((task) => task.status === "awaiting_approval").length;
+    setText("#connection", "Node online"); $("#connection-dot")?.classList.add("online");
+    setText("#agent-count", agents.filter((agent) => agent.status === "available").length);
+    setText("#sidebar-node-count", agents.length);
+    setText("#node-summary", `${agents.filter((agent) => agent.status === "available").length} ONLINE`);
+    setText("#task-count", tasks.length); setText("#approval-count", tasks.filter((task) => task.status === "awaiting_approval").length);
     renderTopology(node, agents); renderAgents(agents, node.id); renderTasks(tasks); renderAudit(events);
   } catch (error) {
-    if (error?.message !== "DASHBOARD_AUTH_REQUIRED") { $("#connection").textContent = "Node offline"; $("#connection-dot").classList.remove("online"); }
-  } finally { button.disabled = false; }
+    if (error?.message !== "DASHBOARD_AUTH_REQUIRED") { setText("#connection", "Node offline"); $("#connection-dot")?.classList.remove("online"); }
+  } finally { if (button) button.disabled = false; }
 }
-$("#refresh").addEventListener("click", refresh);
-$("#task-filter").addEventListener("click", () => { taskFilter = taskFilter === "all" ? "awaiting_approval" : "all"; $("#task-filter").textContent = taskFilter === "all" ? "All status" : "Approval only"; refresh(); });
+$("#refresh")?.addEventListener("click", refresh);
+$("#task-filter")?.addEventListener("click", () => { taskFilter = taskFilter === "all" ? "awaiting_approval" : "all"; setText("#task-filter", taskFilter === "all" ? "All status" : "Approval only"); refresh(); });
 refresh();
 setInterval(refresh, 15000);
