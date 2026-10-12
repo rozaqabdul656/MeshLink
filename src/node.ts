@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { AgentCard, AuditEvent, Task, TaskRequest, TaskResult } from "./contracts.js";
+import type { AgentCard, AuditEvent, Task, TaskContext, TaskRequest, TaskResult } from "./contracts.js";
 import { PROTOCOL_VERSION } from "./contracts.js";
 import type { PolicyDocument } from "./policy.js";
 import { evaluatePolicy } from "./policy.js";
@@ -60,6 +60,9 @@ export class MeshNode {
   }
 
   public async createTask(request: TaskRequest): Promise<Task> {
+    if (request.context && !this.validContext(request.context)) {
+      return this.storeRejected(request, "CONTEXT_INVALID", "Context must contain a bounded summary and content-addressed artifact references");
+    }
     if (request.protocolVersion !== PROTOCOL_VERSION) {
       return this.storeRejected(request, "PROTOCOL_VERSION_UNSUPPORTED", "Unsupported protocol version");
     }
@@ -146,4 +149,13 @@ export class MeshNode {
   }
 
   private persist(): void { this.stateStore.save({ tasks: [...this.tasks.values()], audit: this.audit }); }
+
+  private validContext(context: TaskContext): boolean {
+    return typeof context.id === "string" && context.id.length > 0 && context.id.length <= 128 &&
+      typeof context.summary === "string" && context.summary.length > 0 && context.summary.length <= 16_384 &&
+      (context.artifacts === undefined || (Array.isArray(context.artifacts) && context.artifacts.length <= 64 && context.artifacts.every((artifact) =>
+        artifact && typeof artifact.uri === "string" && artifact.uri.length > 0 && artifact.uri.length <= 2048 &&
+        typeof artifact.sha256 === "string" && /^[a-f0-9]{64}$/i.test(artifact.sha256) &&
+        (artifact.mediaType === undefined || typeof artifact.mediaType === "string"))));
+  }
 }
