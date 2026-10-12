@@ -210,7 +210,20 @@ The Codex worker adapter is not included in Phase 1 yet. Use `service.diagnostic
 
 ## Dashboard
 
-Open `http://127.0.0.1:20128/` while a node is running. The dashboard is deliberately read-only in Phase 1: it visualizes local state but cannot edit policies or approve actions. Those write operations require authenticated admin identities in Phase 2.
+Set a local dashboard password before starting a node:
+
+```bash
+export MESHLINK_DASHBOARD_PASSWORD='replace-this-before-network-exposure'
+npm run dev:node -- --name vps-observer --id vps-observer --port 8400 --policy examples/policy.yaml
+```
+
+Open `http://127.0.0.1:8400/` and sign in. If the variable is unset, local development falls back to `meshlink` and logs a warning. Never use that fallback on a network-exposed node. Sessions are in-memory, expire after one hour, and use `HttpOnly`/`SameSite=Strict` cookies; restart invalidates them.
+
+Phase 2.1 dashboard is local, read-only, and separate from agent identity. Login does not authorize task senders, edit policy, register agents, or approve tasks. The node still binds to loopback by default. Do not expose it beyond a private network until signed agent identity, authenticated transport, durable audit storage, and authenticated approvals are implemented.
+
+The dashboard escapes agent, task, and audit values as text. Unauthenticated dashboard pages redirect to `/login`; unauthenticated dashboard APIs return `401`, and the frontend redirects back to `/login` when a session expires. Existing Phase 1 task and MCP APIs keep their original caller-header behavior.
+
+Frontend API configuration is optional. `MESHLINK_DASHBOARD_API_BASE` defaults to same-origin (`""`) when unset. Set it only when serving the dashboard through a deliberate API proxy; values are emitted as JSON in a no-store config response, not interpolated into HTML.
 
 ## Policy
 
