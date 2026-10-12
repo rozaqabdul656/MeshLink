@@ -20,6 +20,10 @@ env:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    # Docker Hub credentials are stored as Environment secrets, not repository
+    # secrets. Selecting this environment makes them available only to this
+    # release job and honors any environment protection rules.
+    environment: deployment
     steps:
       - name: Check out source
         uses: actions/checkout@v6
