@@ -253,6 +253,10 @@ For example, a sender can ask MeshLink to delegate a read-only task:
 
 The receiving node, not the sender, decides whether that capability may run. To route across servers, register the worker's Agent Card on the sender-side node; see [remote routing](docs/REMOTE-ROUTING.md). Use signed identities and a private VPN or TLS for every non-local deployment.
 
+### Portable context handoff
+
+`TaskRequest.context` and `TaskResult.context` carry a compact handoff envelope: a stable context ID, a bounded summary, and optional content-addressed artifact references (`sha256`). This lets Hermes brief Codex, Codex return a commit/artifact, and QA continue with that same evidence without receiving Hermes's full conversation history. Context is validated for size and artifact hash shape at the receiving node; the node never fetches an artifact URL merely because it appears in context.
+
 ### Worker-node adapter pattern
 
 To make an agent such as Codex on a VPS receive tasks, run a MeshLink Node beside it and register a capability handler. The handler must pin the allowed working directory, sandbox, timeout, and tool permissions. MeshLink sends a task to the handler; it does **not** give a remote sender direct terminal access.

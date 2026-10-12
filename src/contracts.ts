@@ -20,12 +20,27 @@ export interface TaskRequest {
   input: Record<string, unknown>;
   constraints?: { readOnly?: boolean };
   traceId?: string;
+  /** Portable, bounded handoff state; never a raw agent conversation transcript. */
+  context?: TaskContext;
+}
+
+export interface ArtifactRef {
+  uri: string;
+  sha256: string;
+  mediaType?: string;
+}
+
+export interface TaskContext {
+  id: string;
+  summary: string;
+  artifacts?: ArtifactRef[];
 }
 
 export interface TaskResult {
   summary: string;
   evidence?: string[];
   data?: Record<string, unknown>;
+  context?: TaskContext;
 }
 
 export interface Task {

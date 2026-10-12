@@ -8,6 +8,7 @@ import { createHttpServer } from "./http.js";
 import { MeshNode } from "./node.js";
 import { loadPolicy } from "./policy.js";
 import { loadSigningIdentity, signedHeaders } from "./identity.js";
+import { FileNodeStore } from "./store.js";
 
 const diagnosticsCapability = "service.diagnostics";
 
@@ -30,7 +31,7 @@ function createNode(args: string[]): MeshNode {
     endpoint,
     capabilities: [diagnosticsCapability],
     status: "available",
-  }, loadPolicy(option(args, "--policy")));
+  }, loadPolicy(option(args, "--policy")), new FileNodeStore(option(args, "--storage", ".meshlink/state.json")!));
   node.register(diagnosticsCapability, async (request) => ({
     summary: `Diagnostics request accepted by ${name}`,
     evidence: ["Phase 1 sample handler: attach Docker, health, or log adapters here.", `readOnly=${request.constraints?.readOnly ?? false}`],
