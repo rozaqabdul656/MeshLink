@@ -39,14 +39,22 @@ function createNode(args: string[]): MeshNode {
   return node;
 }
 
+function peerHeaders(caller: string, method: string, pathname: string, body = ""): Record<string, string> {
+  const identity = loadSigningIdentity();
+  if (identity && identity.id !== caller) throw new Error("MESHLINK_AGENT_ID must match the caller identity");
+  return { "x-meshlink-agent": caller, ...(identity ? signedHeaders(identity, method, pathname, body) : {}) };
+}
+
 async function registerWithHub(node: MeshNode, hub: string, leaseSeconds: number, registrationToken?: string): Promise<void> {
+  const body = JSON.stringify({ card: node.card, leaseSeconds });
   const response = await fetch(`${hub.replace(/\/$/, "")}/v1/agents`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
+      ...peerHeaders(node.card.id, "POST", "/v1/agents", body),
       ...(registrationToken ? { "x-meshlink-registration-token": registrationToken } : {}),
     },
-    body: JSON.stringify({ card: node.card, leaseSeconds }),
+    body,
   });
   if (!response.ok) throw new Error(`Hub registration failed with HTTP ${response.status}`);
 }
@@ -56,7 +64,8 @@ async function startNode(args: string[]): Promise<void> {
   const host = option(args, "--host", "127.0.0.1")!;
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("--port must be between 1 and 65535");
   const node = createNode(args);
-  const server = createHttpServer(node);
+  const networkExposed = !["127.0.0.1", "localhost", "::1"].includes(host);
+  const server = createHttpServer(node, { networkExposed });
   await new Promise<void>((resolve) => server.listen(port, host, resolve));
   process.stdout.write(`MeshLink node ${node.card.id} is running.\n🎉 Dashboard opens at ${node.card.endpoint}\n`);
   const hub = option(args, "--hub");
@@ -80,15 +89,15 @@ async function startNode(args: string[]): Promise<void> {
 
 async function sendTask(nodeUrl: string, caller: string, capability: string, instruction: string, readOnly: boolean): Promise<Task> {
   const base = nodeUrl.replace(/\/$/, "");
-  const agentsResponse = await fetch(`${base}/v1/agents/capability?capability=${encodeURIComponent(capability)}`);
-  const agents = agentsResponse.ok ? await agentsResponse.json() as { agents?: Array<{ endpoint: string }> } : {};
+  const capabilityPath = "/v1/agents/capability";
+  const agentsResponse = await fetch(`${base}${capabilityPath}?capability=${encodeURIComponent(capability)}`, { headers: peerHeaders(caller, "GET", capabilityPath) });
+  if (!agentsResponse.ok) throw new Error(`Agent lookup rejected with HTTP ${agentsResponse.status}`);
+  const agents = await agentsResponse.json() as { agents?: Array<{ endpoint: string }> };
   const target = agents.agents?.[0]?.endpoint ?? base;
   const body = JSON.stringify({ protocolVersion: PROTOCOL_VERSION, targetCapability: capability, input: { instruction }, constraints: { readOnly } });
-  const identity = loadSigningIdentity();
-  if (identity && identity.id !== caller) throw new Error("MESHLINK_AGENT_ID must match the MCP --caller value");
   const response = await fetch(`${target.replace(/\/$/, "")}/v1/tasks`, {
     method: "POST",
-    headers: { "content-type": "application/json", "x-meshlink-agent": caller, ...(identity ? signedHeaders(identity, "POST", "/v1/tasks", body) : {}) },
+    headers: { "content-type": "application/json", ...peerHeaders(caller, "POST", "/v1/tasks", body) },
     body,
   });
   return await response.json() as Task;
@@ -102,7 +111,7 @@ async function startMcp(args: string[]): Promise<void> {
   server.registerTool("mesh_find_agents", {
     description: "List MeshLink agents registered on the configured node.",
   }, async () => {
-    const response = await fetch(`${nodeUrl.replace(/\/$/, "")}/v1/agents`);
+    const response = await fetch(`${nodeUrl.replace(/\/$/, "")}/v1/agents`, { headers: peerHeaders(caller, "GET", "/v1/agents") });
     const payload = await response.json();
     return { content: [{ type: "text", text: JSON.stringify(payload, null, 2) }] };
   });
@@ -123,7 +132,8 @@ async function startMcp(args: string[]): Promise<void> {
     description: "Read a MeshLink task status and result by task ID.",
     inputSchema: { taskId: z.string() },
   }, async ({ taskId }) => {
-    const response = await fetch(`${nodeUrl.replace(/\/$/, "")}/v1/tasks/${encodeURIComponent(taskId)}`);
+    const pathname = `/v1/tasks/${encodeURIComponent(taskId)}`;
+    const response = await fetch(`${nodeUrl.replace(/\/$/, "")}${pathname}`, { headers: peerHeaders(caller, "GET", pathname) });
     return { content: [{ type: "text", text: JSON.stringify(await response.json(), null, 2) }] };
   });
 

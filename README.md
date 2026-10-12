@@ -2,7 +2,7 @@
 
 MeshLink is a self-hosted task mesh that lets independent AI agents communicate across environments without sharing a runtime or filesystem.
 
-Phase 1 intentionally stays small: an HTTP node, capability-scoped tasks, deny-by-default policy, an MCP adapter, a remote agent registry, and an audit trail. Its public contract is versioned so later A2A, durable queues, signed identity, and richer multi-node routing can be added without changing Phase 1 task callers.
+Phase 1 intentionally stays small: an HTTP node, capability-scoped tasks, deny-by-default policy, an MCP adapter, a remote agent registry, and an audit trail. Its public contract is versioned so durable queues and richer multi-node routing can be added without changing task callers.
 
 ## What works today
 
@@ -19,6 +19,7 @@ See [the Phase 1 architecture](docs/ARCHITECTURE.md) and [the compatibility road
 
 ```bash
 npm install -g @meshlink-ai/meshlink
+export MESHLINK_INSECURE_DEV_MODE=true # local-only quick start
 meshlink
 ```
 
@@ -30,7 +31,7 @@ The published package is [@meshlink-ai/meshlink on npm](https://www.npmjs.com/pa
 meshlink --help
 ```
 
-The default node listens only on `127.0.0.1:20128` and has a deny-by-default policy. Use `Ctrl+C` to stop it.
+The default node listens only on `127.0.0.1:20128` and has a deny-by-default policy. For this local quick start, set `MESHLINK_INSECURE_DEV_MODE=true`; production and VPN nodes require signed identities described below. Use `Ctrl+C` to stop it.
 
 ## Run a hub with local and VPS nodes
 
@@ -39,12 +40,12 @@ Tailscale or WireGuard). Run the registry/hub on the VPS, then let every
 worker node register and renew itself. A leased Agent Card disappears if the
 worker goes offline rather than leaving routing pointed at a stale laptop.
 
-On the VPS, bind to its private VPN address and protect registrations with a
-shared token:
+On the VPS, bind to its private VPN address, configure trusted Ed25519 peers and exact worker origins, then optionally protect registrations with a separate shared token:
 
 ```bash
 export MESHLINK_DASHBOARD_PASSWORD='use-a-long-dashboard-password'
 export MESHLINK_REGISTRATION_TOKEN='use-a-separate-long-registration-token'
+export MESHLINK_ALLOWED_AGENT_ENDPOINTS='http://100.64.0.12:9001'
 meshlink node start \
   --name mesh-hub --id mesh-hub --host 100.64.0.10 --port 8400 \
   --endpoint http://100.64.0.10:8400 --policy ./policy.yaml
@@ -62,9 +63,7 @@ meshlink node start \
   --registration-token "$MESHLINK_REGISTRATION_TOKEN"
 ```
 
-The node's advertised `--endpoint` must be reachable from the hub. Do not use
-a public IP or expose a Phase 1 port to the open internet: task caller identity
-is still the development header and TLS/signed identities are Phase 2 work.
+The node's advertised `--endpoint` must be reachable from the hub and be listed exactly in `MESHLINK_ALLOWED_AGENT_ENDPOINTS`. Keep mesh traffic on a private VPN or TLS; signed identity does not encrypt the transport.
 
 ## Signed node-to-node requests
 
@@ -78,8 +77,13 @@ meshlink identity generate --kid codex-2026-01
 Set the sender's `MESHLINK_AGENT_ID`, `MESHLINK_AGENT_KEY_ID`, and
 base64-encoded `MESHLINK_AGENT_PRIVATE_KEY`. On the receiving node, set
 `MESHLINK_TRUSTED_AGENTS` to a JSON array containing the sender's ID, key ID,
-and PEM public key. When that variable is present, every task must carry a
-valid Ed25519 signature, a fresh timestamp, and a single-use request ID.
+PEM public key, and least-privilege permissions. For example:
+
+```json
+[{"id":"agent://hermes","kid":"hermes-2026-01","publicKey":"-----BEGIN PUBLIC KEY-----...","permissions":["task.submit"]}]
+```
+
+Every request must carry a valid Ed25519 signature, a fresh timestamp, and a single-use request ID.
 Unsigned, altered, stale, unknown-key, and replayed requests are rejected
 before policy evaluation. Keep transport on a private VPN or TLS as well.
 
@@ -225,7 +229,7 @@ await fetch("http://127.0.0.1:8400/v1/tasks", {
 });
 ```
 
-This direct HTTP example uses the current Phase 1 development identity header. It can route to a registered remote node, but do not expose this API to the public internet until signed identities, authenticated registration, and TLS are enabled.
+For a signed node, create this request with `signedHeaders` (or use the included MCP adapter), and give `agent://hermes` the `task.submit` scope. A plain caller header works only when the receiver explicitly runs in local insecure development mode.
 
 ### Calling a worker
 
@@ -247,7 +251,7 @@ For example, a sender can ask MeshLink to delegate a read-only task:
 }
 ```
 
-The receiving node, not the sender, decides whether that capability may run. To route across servers, register the worker's Agent Card on the sender-side node; see [remote routing](docs/REMOTE-ROUTING.md). Phase 1 uses a development identity header, so only run this across trusted/private networks.
+The receiving node, not the sender, decides whether that capability may run. To route across servers, register the worker's Agent Card on the sender-side node; see [remote routing](docs/REMOTE-ROUTING.md). Use signed identities and a private VPN or TLS for every non-local deployment.
 
 ### Worker-node adapter pattern
 
@@ -270,9 +274,25 @@ npm run dev:node -- --name vps-observer --id vps-observer --port 8400 --policy e
 
 Open `http://127.0.0.1:8400/` and sign in. If the variable is unset, local development falls back to `meshlink` and logs a warning. Never use that fallback on a network-exposed node. Sessions are in-memory, expire after one hour, and use `HttpOnly`/`SameSite=Strict` cookies; restart invalidates them.
 
-Phase 2.1 dashboard is local, read-only, and separate from agent identity. Login does not authorize task senders, edit policy, register agents, or approve tasks. The node still binds to loopback by default. Do not expose it beyond a private network until signed agent identity, authenticated transport, durable audit storage, and authenticated approvals are implemented.
+## Security mode
 
-The dashboard escapes agent, task, and audit values as text. Unauthenticated dashboard pages redirect to `/login`; unauthenticated dashboard APIs return `401`, and the frontend redirects back to `/login` when a session expires. Existing Phase 1 task and MCP APIs keep their original caller-header behavior.
+MeshLink defaults to a signed, least-privilege network API. A network-exposed node requires `MESHLINK_TRUSTED_AGENTS` (trusted Ed25519 public keys plus explicit permissions) and `MESHLINK_DASHBOARD_PASSWORD`. Every `/v1` request is signed over the exact raw request body, time-bounded, and replay-protected.
+
+An isolated local experiment must opt in explicitly:
+
+```bash
+export MESHLINK_INSECURE_DEV_MODE=true
+```
+
+Never use that flag on a node bound beyond loopback. Secure agent registration also requires exact endpoint allowlisting, which prevents arbitrary endpoint registration/SSRF:
+
+```bash
+export MESHLINK_ALLOWED_AGENT_ENDPOINTS='https://codex.mesh.example,https://qa.mesh.example'
+```
+
+Permissions are scoped per trusted peer: `task.submit`, `task.read`, `task.approve`, `audit.read`, `registry.read`, and `registry.write`. A task owner can read its own task; accessing other peers' tasks or approving a privileged task requires the corresponding explicit scope. Dashboard login remains separate from node-to-node authorization.
+
+The dashboard escapes agent, task, and audit values as text. Unauthenticated dashboard pages redirect to `/login`; unauthenticated dashboard APIs return `401`, and the frontend redirects back to `/login` when a session expires. Dashboard sessions never authorize the node-to-node API.
 
 Frontend API configuration is optional. `MESHLINK_DASHBOARD_API_BASE` defaults to same-origin (`""`) when unset. Set it only when serving the dashboard through a deliberate API proxy; values are emitted as JSON in a no-store config response, not interpolated into HTML.
 
@@ -300,7 +320,7 @@ Want to add a capability, adapter, integration, or improve the docs? See [CONTRI
 
 ## Security status
 
-Phase 1's `x-meshlink-agent` header is a development identity placeholder, not cryptographic authentication. Do not expose this service publicly yet. Phase 2 will add signed identities, authenticated registration, TLS/replay protection, and persistent task/audit storage.
+Network use requires signed identities and scoped authorization. Durable task/audit storage, worker recovery, and portable context are the next implementation phases; do not claim crash recovery until their end-to-end tests pass.
 
 ## License
 

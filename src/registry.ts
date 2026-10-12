@@ -2,6 +2,15 @@ import type { AgentCard } from "./contracts.js";
 
 type RegistryEntry = { card: AgentCard; expiresAt?: number };
 
+/** Network registrations are an SSRF boundary: use exact operator-provided origins. */
+export function assertAllowedAgentEndpoint(endpointValue: string, allowedOrigins: readonly string[]): void {
+  const endpoint = new URL(endpointValue);
+  if (!(["http:", "https:"].includes(endpoint.protocol)) || endpoint.username || endpoint.password || endpoint.search || endpoint.hash || endpoint.pathname !== "/") {
+    throw new Error("Invalid MeshLink agent endpoint");
+  }
+  if (!allowedOrigins.includes(endpoint.origin)) throw new Error("Agent endpoint is not allowlisted in MESHLINK_ALLOWED_AGENT_ENDPOINTS");
+}
+
 export class AgentRegistry {
   private readonly agents = new Map<string, RegistryEntry>();
 

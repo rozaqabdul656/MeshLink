@@ -18,6 +18,8 @@ export async function routeTask(
   endpoint.hash = "";
   const response = await fetcher(endpoint, {
     method: "POST",
+    redirect: "error",
+    signal: AbortSignal.timeout(10_000),
     headers: { "content-type": "application/json", "x-meshlink-agent": caller },
     body: JSON.stringify({ protocolVersion: PROTOCOL_VERSION, targetCapability: capability, input }),
   });
