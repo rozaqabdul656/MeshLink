@@ -14,7 +14,6 @@ services:
       MESHLINK_RATE_LIMIT_MAX: ${MESHLINK_RATE_LIMIT_MAX:-120}
     volumes:
       - meshlink-data:/data
-      - ./examples/policy.yaml:/config/policy.yaml:ro
     command:
       - node
       - start
@@ -29,7 +28,7 @@ services:
       - --endpoint
       - ${MESHLINK_ENDPOINT:?Set the private-VPN or HTTPS endpoint in .env}
       - --policy
-      - /config/policy.yaml
+      - /app/examples/policy.yaml
       - --storage
       - /data/state.db
 
