@@ -45,6 +45,8 @@ export interface AgentCard {
   endpoint: string;
   capabilities: string[];
   status: "available" | "busy" | "offline";
+  /** Informational timestamp maintained by a registry; optional for v1 compatibility. */
+  lastSeenAt?: string;
 }
 
 export interface AuditEvent {

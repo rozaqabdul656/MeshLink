@@ -32,6 +32,57 @@ meshlink --help
 
 The default node listens only on `127.0.0.1:20128` and has a deny-by-default policy. Use `Ctrl+C` to stop it.
 
+## Run a hub with local and VPS nodes
+
+MeshLink Phase 1 is designed for a trusted private network (for example
+Tailscale or WireGuard). Run the registry/hub on the VPS, then let every
+worker node register and renew itself. A leased Agent Card disappears if the
+worker goes offline rather than leaving routing pointed at a stale laptop.
+
+On the VPS, bind to its private VPN address and protect registrations with a
+shared token:
+
+```bash
+export MESHLINK_DASHBOARD_PASSWORD='use-a-long-dashboard-password'
+export MESHLINK_REGISTRATION_TOKEN='use-a-separate-long-registration-token'
+meshlink node start \
+  --name mesh-hub --id mesh-hub --host 100.64.0.10 --port 8400 \
+  --endpoint http://100.64.0.10:8400 --policy ./policy.yaml
+```
+
+On Agent B's local machine, expose only its VPN address and register with the
+hub at startup. The node sends a heartbeat every 30 seconds and its 90-second
+lease is renewed each time:
+
+```bash
+meshlink node start \
+  --name agent-b-local --id agent-b-local --host 100.64.0.12 --port 9001 \
+  --endpoint http://100.64.0.12:9001 --policy ./policy.yaml \
+  --hub http://100.64.0.10:8400 \
+  --registration-token "$MESHLINK_REGISTRATION_TOKEN"
+```
+
+The node's advertised `--endpoint` must be reachable from the hub. Do not use
+a public IP or expose a Phase 1 port to the open internet: task caller identity
+is still the development header and TLS/signed identities are Phase 2 work.
+
+## Signed node-to-node requests
+
+For a secured node, generate one Ed25519 keypair per sender and keep the private
+key outside Git:
+
+```bash
+meshlink identity generate --kid codex-2026-01
+```
+
+Set the sender's `MESHLINK_AGENT_ID`, `MESHLINK_AGENT_KEY_ID`, and
+base64-encoded `MESHLINK_AGENT_PRIVATE_KEY`. On the receiving node, set
+`MESHLINK_TRUSTED_AGENTS` to a JSON array containing the sender's ID, key ID,
+and PEM public key. When that variable is present, every task must carry a
+valid Ed25519 signature, a fresh timestamp, and a single-use request ID.
+Unsigned, altered, stale, unknown-key, and replayed requests are rejected
+before policy evaluation. Keep transport on a private VPN or TLS as well.
+
 ## Run a node
 
 Give the node a stable name, ID, port, and policy file when it will serve other local tools or a worker adapter:

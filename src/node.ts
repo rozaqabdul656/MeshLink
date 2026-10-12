@@ -29,6 +29,10 @@ export class MeshNode {
     return [this.card];
   }
 
+  public registerRemote(card: AgentCard, leaseSeconds?: number): AgentCard {
+    return this.registry.register(card, leaseSeconds);
+  }
+
   public getTask(id: string): Task | undefined {
     return this.tasks.get(id);
   }

@@ -24,6 +24,17 @@ test("registry rejects malformed, duplicate, and non-root endpoints", () => {
   assert.throws(() => registry.upsert({ ...remote, id: "node-c", capabilities: "bad" as unknown as string[] }), /Invalid MeshLink agent card/);
 });
 
+test("registry renews a leased node without creating duplicate cards", () => {
+  const registry = new AgentRegistry();
+  const first = registry.register(remote, 60);
+  const renewed = registry.register({ ...remote, status: "busy" }, 60);
+  assert.equal(first.id, remote.id);
+  assert.equal(first.lastSeenAt !== undefined, true);
+  assert.equal(registry.list().length, 1);
+  assert.equal(renewed.status, "busy");
+  assert.equal(registry.get(remote.id)?.status, "busy");
+});
+
 test("routeTask refuses unavailable target and non-task response", async () => {
   await assert.rejects(() => routeTask({ ...remote, status: "offline" }, "agent://node-a", "service.diagnostics", {}), /not available/);
   await assert.rejects(() => routeTask(remote, "agent://node-a", "service.diagnostics", {}, async () => new Response("nope", { status: 200 })), /not a MeshLink task/);
