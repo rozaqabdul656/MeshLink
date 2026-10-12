@@ -1,0 +1,11 @@
+.git
+.github
+.meshlink
+node_modules
+dist
+coverage
+.DS_Store
+*.log
+docs
+test
+.archify

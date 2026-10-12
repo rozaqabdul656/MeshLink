@@ -2,10 +2,15 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { generateKeyPairSync } from "node:crypto";
 import { PROTOCOL_VERSION, type Task } from "./contracts.js";
 import { createHttpServer } from "./http.js";
 import { MeshNode } from "./node.js";
 import { loadPolicy } from "./policy.js";
+import { loadSigningIdentity, signedHeaders } from "./identity.js";
+import { SqliteNodeStore } from "./store.js";
+import { loadStaticRegistry } from "./registry.js";
+import { createSandboxedWorker, loadWorkerProfile } from "./worker.js";
 
 const diagnosticsCapability = "service.diagnostics";
 
@@ -16,42 +21,102 @@ function option(args: string[], name: string, fallback?: string): string | undef
 
 function createNode(args: string[]): MeshNode {
   const port = option(args, "--port", "20128")!;
-  const endpoint = option(args, "--endpoint", `http://127.0.0.1:${port}`)!;
+  const host = option(args, "--host", "127.0.0.1")!;
+  const endpoint = option(args, "--endpoint", host === "127.0.0.1" || host === "localhost" ? `http://127.0.0.1:${port}` : undefined);
+  if (!endpoint) throw new Error("--endpoint is required when --host is not loopback so other nodes receive a reachable address");
   const name = option(args, "--name", "meshlink-node")!;
   const id = option(args, "--id", name)!;
+  const profilePath = option(args, "--worker-profile");
+  const worker = profilePath ? createSandboxedWorker(loadWorkerProfile(profilePath)) : undefined;
   const node = new MeshNode({
     protocolVersion: PROTOCOL_VERSION,
     id,
     name,
     endpoint,
-    capabilities: [diagnosticsCapability],
+    capabilities: [...new Set([diagnosticsCapability, ...(worker?.capabilities ?? [])])],
     status: "available",
-  }, loadPolicy(option(args, "--policy")));
+  }, loadPolicy(option(args, "--policy")), new SqliteNodeStore(option(args, "--storage", ".meshlink/state.db")!));
   node.register(diagnosticsCapability, async (request) => ({
     summary: `Diagnostics request accepted by ${name}`,
     evidence: ["Phase 1 sample handler: attach Docker, health, or log adapters here.", `readOnly=${request.constraints?.readOnly ?? false}`],
     data: { receivedInput: request.input },
   }));
+  if (worker) for (const capability of worker.capabilities) node.register(capability, worker.handler(capability));
   return node;
+}
+
+function peerHeaders(caller: string, method: string, pathname: string, body = ""): Record<string, string> {
+  const identity = loadSigningIdentity();
+  if (identity && identity.id !== caller) throw new Error("MESHLINK_AGENT_ID must match the caller identity");
+  return { "x-meshlink-agent": caller, ...(identity ? signedHeaders(identity, method, pathname, body) : {}) };
+}
+
+async function registerWithHub(node: MeshNode, hub: string, leaseSeconds: number, registrationToken?: string): Promise<void> {
+  const body = JSON.stringify({ card: node.card, leaseSeconds });
+  const response = await fetch(`${hub.replace(/\/$/, "")}/v1/agents`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      ...peerHeaders(node.card.id, "POST", "/v1/agents", body),
+      ...(registrationToken ? { "x-meshlink-registration-token": registrationToken } : {}),
+    },
+    body,
+  });
+  if (!response.ok) throw new Error(`Hub registration failed with HTTP ${response.status}`);
 }
 
 async function startNode(args: string[]): Promise<void> {
   const port = Number(option(args, "--port", "20128"));
+  const host = option(args, "--host", "127.0.0.1")!;
+  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("--port must be between 1 and 65535");
   const node = createNode(args);
-  const server = createHttpServer(node);
-  await new Promise<void>((resolve) => server.listen(port, "127.0.0.1", resolve));
+  for (const card of loadStaticRegistry(option(args, "--registry"))) node.registry.upsert(card);
+  const networkExposed = !["127.0.0.1", "localhost", "::1"].includes(host);
+  const server = createHttpServer(node, { networkExposed });
+  await new Promise<void>((resolve) => server.listen(port, host, resolve));
   process.stdout.write(`MeshLink node ${node.card.id} is running.\n🎉 Dashboard opens at ${node.card.endpoint}\n`);
+  const hub = option(args, "--hub");
+  if (!hub) return;
+  const leaseSeconds = Number(option(args, "--lease-seconds", "90"));
+  const heartbeatSeconds = Number(option(args, "--heartbeat-seconds", "30"));
+  if (!Number.isFinite(leaseSeconds) || leaseSeconds < 10 || leaseSeconds > 3600) throw new Error("--lease-seconds must be between 10 and 3600");
+  if (!Number.isFinite(heartbeatSeconds) || heartbeatSeconds < 5 || heartbeatSeconds >= leaseSeconds) throw new Error("--heartbeat-seconds must be at least 5 and lower than --lease-seconds");
+  const registrationToken = option(args, "--registration-token", process.env.MESHLINK_REGISTRATION_TOKEN);
+  const announce = async () => {
+    try {
+      await registerWithHub(node, hub, leaseSeconds, registrationToken);
+      process.stdout.write(`Registered with hub ${hub}. Lease renews every ${heartbeatSeconds}s.\n`);
+    } catch (error) {
+      process.stderr.write(`MeshLink hub registration failed: ${error instanceof Error ? error.message : "Unknown error"}\n`);
+    }
+  };
+  await announce();
+  setInterval(() => { void announce(); }, heartbeatSeconds * 1000).unref();
 }
 
-async function sendTask(nodeUrl: string, caller: string, capability: string, instruction: string, readOnly: boolean): Promise<Task> {
+async function sendTask(nodeUrl: string, caller: string, capability: string, instruction: string, readOnly: boolean, targetAgentId?: string): Promise<Task> {
   const base = nodeUrl.replace(/\/$/, "");
-  const agentsResponse = await fetch(`${base}/v1/agents/capability?capability=${encodeURIComponent(capability)}`);
-  const agents = agentsResponse.ok ? await agentsResponse.json() as { agents?: Array<{ endpoint: string }> } : {};
-  const target = agents.agents?.[0]?.endpoint ?? base;
+  let target = base;
+  if (targetAgentId) {
+    const response = await fetch(`${base}/v1/agents`, { headers: peerHeaders(caller, "GET", "/v1/agents") });
+    if (!response.ok) throw new Error(`Agent lookup rejected with HTTP ${response.status}`);
+    const agents = await response.json() as { agents?: Array<{ id: string; endpoint: string; status: string; capabilities: string[] }> };
+    const selected = agents.agents?.find((agent) => agent.id === targetAgentId);
+    if (!selected) throw new Error(`Target agent not found: ${targetAgentId}`);
+    if (selected.status !== "available" || !selected.capabilities.includes(capability)) throw new Error(`Target agent cannot accept ${capability}: ${targetAgentId}`);
+    target = selected.endpoint;
+  } else {
+    const capabilityPath = "/v1/agents/capability";
+    const response = await fetch(`${base}${capabilityPath}?capability=${encodeURIComponent(capability)}`, { headers: peerHeaders(caller, "GET", capabilityPath) });
+    if (!response.ok) throw new Error(`Agent lookup rejected with HTTP ${response.status}`);
+    const agents = await response.json() as { agents?: Array<{ endpoint: string }> };
+    target = agents.agents?.[0]?.endpoint ?? base;
+  }
+  const body = JSON.stringify({ protocolVersion: PROTOCOL_VERSION, targetCapability: capability, input: { instruction }, constraints: { readOnly } });
   const response = await fetch(`${target.replace(/\/$/, "")}/v1/tasks`, {
     method: "POST",
-    headers: { "content-type": "application/json", "x-meshlink-agent": caller },
-    body: JSON.stringify({ protocolVersion: PROTOCOL_VERSION, targetCapability: capability, input: { instruction }, constraints: { readOnly } }),
+    headers: { "content-type": "application/json", ...peerHeaders(caller, "POST", "/v1/tasks", body) },
+    body,
   });
   return await response.json() as Task;
 }
@@ -64,7 +129,7 @@ async function startMcp(args: string[]): Promise<void> {
   server.registerTool("mesh_find_agents", {
     description: "List MeshLink agents registered on the configured node.",
   }, async () => {
-    const response = await fetch(`${nodeUrl.replace(/\/$/, "")}/v1/agents`);
+    const response = await fetch(`${nodeUrl.replace(/\/$/, "")}/v1/agents`, { headers: peerHeaders(caller, "GET", "/v1/agents") });
     const payload = await response.json();
     return { content: [{ type: "text", text: JSON.stringify(payload, null, 2) }] };
   });
@@ -75,9 +140,10 @@ async function startMcp(args: string[]): Promise<void> {
       capability: z.string().describe("Capability ID, for example service.diagnostics"),
       instruction: z.string().describe("The task for the remote agent"),
       readOnly: z.boolean().default(true).describe("Request read-only execution"),
+      targetAgentId: z.string().optional().describe("Exact Agent Card ID to receive the task, for example codex-local"),
     },
-  }, async ({ capability, instruction, readOnly }) => {
-    const task = await sendTask(nodeUrl, caller, capability, instruction, readOnly);
+  }, async ({ capability, instruction, readOnly, targetAgentId }) => {
+    const task = await sendTask(nodeUrl, caller, capability, instruction, readOnly, targetAgentId);
     return { content: [{ type: "text", text: JSON.stringify(task, null, 2) }] };
   });
 
@@ -85,7 +151,8 @@ async function startMcp(args: string[]): Promise<void> {
     description: "Read a MeshLink task status and result by task ID.",
     inputSchema: { taskId: z.string() },
   }, async ({ taskId }) => {
-    const response = await fetch(`${nodeUrl.replace(/\/$/, "")}/v1/tasks/${encodeURIComponent(taskId)}`);
+    const pathname = `/v1/tasks/${encodeURIComponent(taskId)}`;
+    const response = await fetch(`${nodeUrl.replace(/\/$/, "")}${pathname}`, { headers: peerHeaders(caller, "GET", pathname) });
     return { content: [{ type: "text", text: JSON.stringify(await response.json(), null, 2) }] };
   });
 
@@ -98,7 +165,12 @@ async function main(): Promise<void> {
   if (command.startsWith("--")) return startNode([command, ...args]);
   if (command === "node") return startNode(args[0] === "start" ? args.slice(1) : args);
   if (command === "mcp") return startMcp(args);
-  process.stderr.write("Usage: meshlink [start] [--port 20128] | meshlink node start | meshlink mcp\n");
+  if (command === "identity" && args[0] === "generate") {
+    const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+    process.stdout.write(JSON.stringify({ kid: option(args, "--kid", "key-1"), privateKey: privateKey.export({ type: "pkcs8", format: "pem" }).toString("base64"), publicKey: publicKey.export({ type: "spki", format: "pem" }).toString() }, null, 2) + "\n");
+    return;
+  }
+  process.stderr.write("Usage: meshlink [start] [--port 20128] [--host 127.0.0.1] [--hub URL] | meshlink node start | meshlink mcp\n");
   process.exitCode = 1;
 }
 

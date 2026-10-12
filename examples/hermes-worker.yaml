@@ -1,0 +1,13 @@
+name: Hermes worker
+workdir: /srv/meshlink/hermes-workspace
+timeoutSeconds: 600
+maxOutputBytes: 204800
+commands:
+  repo.test:
+    command: npm
+    args: [test]
+    readOnly: true
+  repo.lint:
+    command: npm
+    args: [run, lint]
+    readOnly: true

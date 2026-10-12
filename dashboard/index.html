@@ -7,32 +7,32 @@
     <link rel="stylesheet" href="/dashboard/styles.css" />
   </head>
   <body>
-    <main class="shell">
-      <header class="topbar">
+    <div class="app-shell">
+      <aside class="sidebar">
         <div class="brand"><span class="brand-mark">M</span><span>MeshLink</span></div>
-        <div class="connection"><span id="connection-dot" class="dot"></span><span id="connection">Checking node</span></div>
-      </header>
-      <section class="hero">
-        <div><p class="eyebrow">CONTROL PLANE / PHASE 1</p><h1>See the agent mesh.<br /><em>Keep control local.</em></h1></div>
-        <button id="refresh" class="refresh">Refresh data <span>↻</span></button>
-      </section>
-      <section class="stats" aria-label="Node summary">
-        <article><span>Agents online</span><strong id="agent-count">—</strong><small>Capability registry</small></article>
-        <article><span>Tasks tracked</span><strong id="task-count">—</strong><small>Current node memory</small></article>
-        <article><span>Approval queue</span><strong id="approval-count">—</strong><small>Needs local action</small></article>
-        <article><span>Policy</span><strong>DENY</strong><small>Default posture</small></article>
-      </section>
-      <section class="layout">
-        <article class="panel topology"><div class="panel-heading"><div><p class="eyebrow">TOPOLOGY</p><h2>Node route map</h2></div><span class="pill">LOCAL</span></div>
-          <div id="topology" class="topology-canvas" aria-live="polite"></div>
-          <p class="hint">Tasks enter through an MCP adapter. The destination node owns policy and execution.</p>
-        </article>
-        <article class="panel agents"><div class="panel-heading"><div><p class="eyebrow">AGENT CARDS</p><h2>Available agents</h2></div></div><div id="agents" class="agent-list"></div></article>
-        <article class="panel tasks"><div class="panel-heading"><div><p class="eyebrow">TASK LIFECYCLE</p><h2>Recent tasks</h2></div><button id="task-filter" class="text-button">All status</button></div><div id="tasks" class="task-list"></div></article>
-        <article class="panel audit"><div class="panel-heading"><div><p class="eyebrow">AUDIT TRAIL</p><h2>Policy events</h2></div></div><ol id="audit" class="audit-list"></ol></article>
-      </section>
-      <footer>Phase 1 is read-only. Policy editing and approvals move to Phase 2 with admin authentication.</footer>
-    </main>
+        <p class="workspace">PRIVATE MESH / PHASE 1</p>
+        <nav aria-label="Control plane navigation"><a class="nav-link active" href="/dashboard">Overview</a><a class="nav-link" href="/dashboard/nodes">Nodes <span id="sidebar-node-count">—</span></a><a class="nav-link" href="/dashboard/tasks">Task history</a><a class="nav-link" href="/dashboard/audit">Audit events</a></nav>
+        <div class="sidebar-status"><span id="connection-dot" class="dot"></span><div><b id="connection">Checking node</b><small>Local control plane</small></div></div>
+        <form method="post" action="/logout"><button class="logout" type="submit">Sign out</button></form>
+      </aside>
+      <main class="main-content">
+        <header class="topbar"><div><p class="eyebrow">NETWORK OPERATIONS</p><h1>Agent control plane</h1></div><button id="refresh" class="refresh">Refresh <span>↻</span></button></header>
+        <section id="overview" class="stats" aria-label="Node summary">
+          <article><span>Nodes online</span><strong id="agent-count">—</strong><small>Live registry cards</small></article>
+          <article><span>Tasks tracked</span><strong id="task-count">—</strong><small>Current node memory</small></article>
+          <article><span>Approval queue</span><strong id="approval-count">—</strong><small>Needs local action</small></article>
+          <article><span>Policy posture</span><strong>DENY</strong><small>Default enforcement</small></article>
+          <article><span>Trust posture</span><strong id="trust-posture">—</strong><small id="persistence-posture">Checking persistence</small></article>
+        </section>
+        <section class="dashboard-grid">
+          <article class="panel topology"><div class="panel-heading"><div><p class="eyebrow">ROUTING</p><h2>Live task path</h2></div><span class="pill">LOCAL</span></div><div id="topology" class="topology-canvas" aria-live="polite"></div><p class="hint">Every request enters as a scoped task; the destination node owns the policy decision.</p></article>
+          <article id="audit-panel" class="panel audit"><div class="panel-heading"><div><p class="eyebrow">LATEST EVENTS</p><h2>Policy audit</h2></div></div><ol id="audit" class="audit-list"></ol></article>
+        </section>
+        <section class="panel full-panel"><div class="panel-heading"><div><p class="eyebrow">NODE REGISTRY</p><h2>Connected nodes</h2></div><a class="text-link" href="/dashboard/nodes">Open node registry →</a></div><div id="agents" class="node-list"></div></section>
+        <section class="panel full-panel"><div class="panel-heading"><div><p class="eyebrow">TASK HISTORY</p><h2>Requests through this node</h2></div><a class="text-link" href="/dashboard/tasks">Open history →</a></div><div id="tasks" class="task-list"></div></section>
+        <footer>MeshLink Phase 1 · local policies decide execution · dashboard actions are read-only</footer>
+      </main>
+    </div>
     <template id="empty"><p class="empty">Nothing recorded yet.</p></template>
     <script src="/dashboard/config.js"></script>
     <script type="module" src="/dashboard/app.js"></script>
