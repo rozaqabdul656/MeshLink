@@ -94,13 +94,24 @@ async function startNode(args: string[]): Promise<void> {
   setInterval(() => { void announce(); }, heartbeatSeconds * 1000).unref();
 }
 
-async function sendTask(nodeUrl: string, caller: string, capability: string, instruction: string, readOnly: boolean): Promise<Task> {
+async function sendTask(nodeUrl: string, caller: string, capability: string, instruction: string, readOnly: boolean, targetAgentId?: string): Promise<Task> {
   const base = nodeUrl.replace(/\/$/, "");
-  const capabilityPath = "/v1/agents/capability";
-  const agentsResponse = await fetch(`${base}${capabilityPath}?capability=${encodeURIComponent(capability)}`, { headers: peerHeaders(caller, "GET", capabilityPath) });
-  if (!agentsResponse.ok) throw new Error(`Agent lookup rejected with HTTP ${agentsResponse.status}`);
-  const agents = await agentsResponse.json() as { agents?: Array<{ endpoint: string }> };
-  const target = agents.agents?.[0]?.endpoint ?? base;
+  let target = base;
+  if (targetAgentId) {
+    const response = await fetch(`${base}/v1/agents`, { headers: peerHeaders(caller, "GET", "/v1/agents") });
+    if (!response.ok) throw new Error(`Agent lookup rejected with HTTP ${response.status}`);
+    const agents = await response.json() as { agents?: Array<{ id: string; endpoint: string; status: string; capabilities: string[] }> };
+    const selected = agents.agents?.find((agent) => agent.id === targetAgentId);
+    if (!selected) throw new Error(`Target agent not found: ${targetAgentId}`);
+    if (selected.status !== "available" || !selected.capabilities.includes(capability)) throw new Error(`Target agent cannot accept ${capability}: ${targetAgentId}`);
+    target = selected.endpoint;
+  } else {
+    const capabilityPath = "/v1/agents/capability";
+    const response = await fetch(`${base}${capabilityPath}?capability=${encodeURIComponent(capability)}`, { headers: peerHeaders(caller, "GET", capabilityPath) });
+    if (!response.ok) throw new Error(`Agent lookup rejected with HTTP ${response.status}`);
+    const agents = await response.json() as { agents?: Array<{ endpoint: string }> };
+    target = agents.agents?.[0]?.endpoint ?? base;
+  }
   const body = JSON.stringify({ protocolVersion: PROTOCOL_VERSION, targetCapability: capability, input: { instruction }, constraints: { readOnly } });
   const response = await fetch(`${target.replace(/\/$/, "")}/v1/tasks`, {
     method: "POST",
@@ -129,9 +140,10 @@ async function startMcp(args: string[]): Promise<void> {
       capability: z.string().describe("Capability ID, for example service.diagnostics"),
       instruction: z.string().describe("The task for the remote agent"),
       readOnly: z.boolean().default(true).describe("Request read-only execution"),
+      targetAgentId: z.string().optional().describe("Exact Agent Card ID to receive the task, for example codex-local"),
     },
-  }, async ({ capability, instruction, readOnly }) => {
-    const task = await sendTask(nodeUrl, caller, capability, instruction, readOnly);
+  }, async ({ capability, instruction, readOnly, targetAgentId }) => {
+    const task = await sendTask(nodeUrl, caller, capability, instruction, readOnly, targetAgentId);
     return { content: [{ type: "text", text: JSON.stringify(task, null, 2) }] };
   });
 
