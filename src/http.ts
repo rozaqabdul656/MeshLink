@@ -7,6 +7,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { PROTOCOL_VERSION, type TaskRequest } from "./contracts.js";
 import { MeshNode } from "./node.js";
 import { createDashboardAuth, dashboardPassword } from "./auth.js";
+import { RequestVerifier } from "./identity.js";
 
 async function body(request: IncomingMessage): Promise<unknown> {
   const maxBytes = 64 * 1024;
@@ -56,6 +57,7 @@ function loginPage(warning: boolean, failed = false): string {
 export function createHttpServer(node: MeshNode): http.Server {
   const configured = dashboardPassword();
   const auth = createDashboardAuth(configured.password, undefined, false);
+  const verifier = RequestVerifier.fromEnvironment();
   if (configured.fallback) process.stderr.write("Warning: MESHLINK_DASHBOARD_PASSWORD unset; default password meshlink must not be used on a network-exposed node.\n");
   return http.createServer(async (request, response) => {
     try {
@@ -118,7 +120,17 @@ export function createHttpServer(node: MeshNode): http.Server {
       if (request.method === "GET" && taskMatch) { const task = node.getTask(taskMatch[1]); return task ? send(response, 200, task) : send(response, 404, { error: "TASK_NOT_FOUND" }); }
       const approvalMatch = url.pathname.match(/^\/v1\/tasks\/([^/]+)\/approve$/);
       if (request.method === "POST" && approvalMatch) { const task = await node.approveTask(approvalMatch[1]); return task ? send(response, 200, task) : send(response, 404, { error: "TASK_NOT_FOUND" }); }
-      if (request.method === "POST" && url.pathname === "/v1/tasks") { const payload = await body(request) as Omit<TaskRequest, "caller">; const caller = request.headers["x-meshlink-agent"]; if (typeof caller !== "string" || caller.length === 0) return send(response, 401, { error: "CALLER_ID_REQUIRED" }); const task = await node.createTask({ ...payload, caller }); return send(response, task.status === "denied" ? 403 : 202, task); }
+      if (request.method === "POST" && url.pathname === "/v1/tasks") {
+        const payload = await body(request) as Omit<TaskRequest, "caller">;
+        let caller = request.headers["x-meshlink-agent"];
+        if (verifier) {
+          const result = verifier.verify(request.method, url.pathname, request.headers, JSON.stringify(payload));
+          if (!result.ok) return send(response, 401, { error: result.code });
+          caller = result.caller;
+        }
+        if (typeof caller !== "string" || caller.length === 0) return send(response, 401, { error: "CALLER_ID_REQUIRED" });
+        const task = await node.createTask({ ...payload, caller }); return send(response, task.status === "denied" ? 403 : 202, task);
+      }
       return send(response, 404, { error: "NOT_FOUND" });
     } catch (error) { return send(response, 400, { error: "BAD_REQUEST", message: error instanceof Error ? error.message : "Unknown error" }); }
   });

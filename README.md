@@ -66,6 +66,23 @@ The node's advertised `--endpoint` must be reachable from the hub. Do not use
 a public IP or expose a Phase 1 port to the open internet: task caller identity
 is still the development header and TLS/signed identities are Phase 2 work.
 
+## Signed node-to-node requests
+
+For a secured node, generate one Ed25519 keypair per sender and keep the private
+key outside Git:
+
+```bash
+meshlink identity generate --kid codex-2026-01
+```
+
+Set the sender's `MESHLINK_AGENT_ID`, `MESHLINK_AGENT_KEY_ID`, and
+base64-encoded `MESHLINK_AGENT_PRIVATE_KEY`. On the receiving node, set
+`MESHLINK_TRUSTED_AGENTS` to a JSON array containing the sender's ID, key ID,
+and PEM public key. When that variable is present, every task must carry a
+valid Ed25519 signature, a fresh timestamp, and a single-use request ID.
+Unsigned, altered, stale, unknown-key, and replayed requests are rejected
+before policy evaluation. Keep transport on a private VPN or TLS as well.
+
 ## Run a node
 
 Give the node a stable name, ID, port, and policy file when it will serve other local tools or a worker adapter:

@@ -2,10 +2,12 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { generateKeyPairSync } from "node:crypto";
 import { PROTOCOL_VERSION, type Task } from "./contracts.js";
 import { createHttpServer } from "./http.js";
 import { MeshNode } from "./node.js";
 import { loadPolicy } from "./policy.js";
+import { loadSigningIdentity, signedHeaders } from "./identity.js";
 
 const diagnosticsCapability = "service.diagnostics";
 
@@ -81,10 +83,13 @@ async function sendTask(nodeUrl: string, caller: string, capability: string, ins
   const agentsResponse = await fetch(`${base}/v1/agents/capability?capability=${encodeURIComponent(capability)}`);
   const agents = agentsResponse.ok ? await agentsResponse.json() as { agents?: Array<{ endpoint: string }> } : {};
   const target = agents.agents?.[0]?.endpoint ?? base;
+  const body = JSON.stringify({ protocolVersion: PROTOCOL_VERSION, targetCapability: capability, input: { instruction }, constraints: { readOnly } });
+  const identity = loadSigningIdentity();
+  if (identity && identity.id !== caller) throw new Error("MESHLINK_AGENT_ID must match the MCP --caller value");
   const response = await fetch(`${target.replace(/\/$/, "")}/v1/tasks`, {
     method: "POST",
-    headers: { "content-type": "application/json", "x-meshlink-agent": caller },
-    body: JSON.stringify({ protocolVersion: PROTOCOL_VERSION, targetCapability: capability, input: { instruction }, constraints: { readOnly } }),
+    headers: { "content-type": "application/json", "x-meshlink-agent": caller, ...(identity ? signedHeaders(identity, "POST", "/v1/tasks", body) : {}) },
+    body,
   });
   return await response.json() as Task;
 }
@@ -131,6 +136,11 @@ async function main(): Promise<void> {
   if (command.startsWith("--")) return startNode([command, ...args]);
   if (command === "node") return startNode(args[0] === "start" ? args.slice(1) : args);
   if (command === "mcp") return startMcp(args);
+  if (command === "identity" && args[0] === "generate") {
+    const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+    process.stdout.write(JSON.stringify({ kid: option(args, "--kid", "key-1"), privateKey: privateKey.export({ type: "pkcs8", format: "pem" }).toString("base64"), publicKey: publicKey.export({ type: "spki", format: "pem" }).toString() }, null, 2) + "\n");
+    return;
+  }
   process.stderr.write("Usage: meshlink [start] [--port 20128] [--host 127.0.0.1] [--hub URL] | meshlink node start | meshlink mcp\n");
   process.exitCode = 1;
 }
