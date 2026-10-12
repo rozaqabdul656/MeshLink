@@ -1,0 +1,13 @@
+name: QA worker
+workdir: /srv/meshlink/qa-workspace
+timeoutSeconds: 600
+maxOutputBytes: 204800
+commands:
+  qa.unit:
+    command: npm
+    args: [test]
+    readOnly: true
+  qa.lint:
+    command: npm
+    args: [run, lint]
+    readOnly: true

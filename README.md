@@ -265,7 +265,17 @@ To make an agent such as Codex on a VPS receive tasks, run a MeshLink Node besid
 MeshLink Node on VPS → capability handler → Codex CLI / SDK → allowed repository
 ```
 
-The Codex worker adapter is not included in Phase 1 yet. Use `service.diagnostics` as the safe sample capability while building adapters for code-writing or deployment work.
+### Sandboxed Hermes and QA workers
+
+Use a worker profile when Hermes or QA should execute an explicitly allowlisted capability. The remote task selects only a capability name; it cannot provide a shell command, arguments, or working directory.
+
+```bash
+meshlink node start \
+  --name hermes-worker --id hermes-worker --policy ./policy.yaml \
+  --worker-profile ./examples/hermes-worker.yaml
+```
+
+The profile's `workdir`, static command, static arguments, timeout, output cap, and read-only posture are controlled locally. Use [`examples/hermes-worker.yaml`](examples/hermes-worker.yaml) or [`examples/qa-worker.yaml`](examples/qa-worker.yaml) as a starting point. Run the worker under a dedicated OS user or container with no cloud/SSH credentials for an OS-enforced filesystem and credential boundary; MeshLink's adapter deliberately never evaluates remote shell text.
 
 ## Dashboard
 

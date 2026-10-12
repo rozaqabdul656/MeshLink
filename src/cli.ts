@@ -10,6 +10,7 @@ import { loadPolicy } from "./policy.js";
 import { loadSigningIdentity, signedHeaders } from "./identity.js";
 import { SqliteNodeStore } from "./store.js";
 import { loadStaticRegistry } from "./registry.js";
+import { createSandboxedWorker, loadWorkerProfile } from "./worker.js";
 
 const diagnosticsCapability = "service.diagnostics";
 
@@ -25,12 +26,14 @@ function createNode(args: string[]): MeshNode {
   if (!endpoint) throw new Error("--endpoint is required when --host is not loopback so other nodes receive a reachable address");
   const name = option(args, "--name", "meshlink-node")!;
   const id = option(args, "--id", name)!;
+  const profilePath = option(args, "--worker-profile");
+  const worker = profilePath ? createSandboxedWorker(loadWorkerProfile(profilePath)) : undefined;
   const node = new MeshNode({
     protocolVersion: PROTOCOL_VERSION,
     id,
     name,
     endpoint,
-    capabilities: [diagnosticsCapability],
+    capabilities: [...new Set([diagnosticsCapability, ...(worker?.capabilities ?? [])])],
     status: "available",
   }, loadPolicy(option(args, "--policy")), new SqliteNodeStore(option(args, "--storage", ".meshlink/state.db")!));
   node.register(diagnosticsCapability, async (request) => ({
@@ -38,6 +41,7 @@ function createNode(args: string[]): MeshNode {
     evidence: ["Phase 1 sample handler: attach Docker, health, or log adapters here.", `readOnly=${request.constraints?.readOnly ?? false}`],
     data: { receivedInput: request.input },
   }));
+  if (worker) for (const capability of worker.capabilities) node.register(capability, worker.handler(capability));
   return node;
 }
 
