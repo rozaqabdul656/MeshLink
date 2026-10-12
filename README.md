@@ -15,7 +15,7 @@ Phase 1 intentionally stays small: an HTTP node, capability-scoped tasks, deny-b
 
 See [the Phase 1 architecture](docs/ARCHITECTURE.md) and [the compatibility roadmap](docs/ROADMAP.md).
 
-## Quick start
+## Install with npm
 
 ```bash
 npm install -g @meshlink-ai/meshlink
@@ -32,6 +32,30 @@ meshlink --help
 ```
 
 The default node listens only on `127.0.0.1:20128` and has a deny-by-default policy. For this local quick start, set `MESHLINK_INSECURE_DEV_MODE=true`; production and VPN nodes require signed identities described below. Use `Ctrl+C` to stop it.
+
+## Docker
+
+The published image is `rozaq220301/meshlink`. Pin a release tag in real
+deployments; `latest` is only a convenience tag. Docker is a full alternative
+to npm installation: the image includes the CLI, dashboard, and example
+policy, while SQLite state is persisted outside the container.
+
+```bash
+docker pull rozaq220301/meshlink:latest
+cp .env.example .env
+# edit .env; do not commit it
+docker compose up -d
+docker compose logs -f meshlink
+```
+
+The Compose service persists its SQLite state in the `meshlink-data` volume,
+runs as an unprivileged `node` user, and refuses to start until the signing
+trust configuration is supplied. The bundled policy is deny-by-default; for a
+custom production policy, mount your reviewed YAML over
+`/app/examples/policy.yaml` as read-only. Keep Docker Hub
+credentials out of `.env`: publishing is performed by GitHub Actions using
+repository secrets `DOCKERHUB_USERNAME` (`rozaq220301`) and
+`DOCKERHUB_TOKEN` (a Docker Hub access token with push permission).
 
 ## Run a hub with local and VPS nodes
 
