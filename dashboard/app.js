@@ -59,7 +59,7 @@ function renderAudit(events) {
   const host = $("#audit"); host.replaceChildren(); if (!events.length) return host.append(empty());
   events.slice().reverse().slice(0, 7).forEach((event) => {
     const item = document.createElement("li"); const dot = document.createElement("span"); dot.className = `audit-dot ${event.action}`;
-    const copy = document.createElement("div"); const action = document.createElement("b"); action.append(text(event.action.replaceAll("_", " "));
+    const copy = document.createElement("div"); const action = document.createElement("b"); action.append(text(event.action.replaceAll("_", " ")));
     const detail = document.createElement("small"); detail.append(text(`${event.caller} → ${event.capability}`)); copy.append(action, detail);
     const time = document.createElement("time"); time.append(text(formatTime(event.at))); item.append(dot, copy, time); host.append(item);
   });
@@ -67,11 +67,13 @@ function renderAudit(events) {
 async function refresh() {
   const button = $("#refresh"); button.disabled = true;
   try {
-    const [health, nodeResponse, agentResponse, taskResponse, auditResponse] = await Promise.all([api("/health"), api("/dashboard/api/node"), api("/dashboard/api/agents"), api("/dashboard/api/tasks"), api("/dashboard/api/audit")]);
+    const [health, nodeResponse, agentResponse, taskResponse, auditResponse] = await Promise.all([api("/health"), api("/dashboard/api/node"), api("/dashboard/api/nodes"), api("/dashboard/api/tasks"), api("/dashboard/api/audit")]);
     if (!health.ok) throw new Error("Node unavailable");
-    const [{ node }, { agents }, { tasks }, { events }] = await Promise.all([nodeResponse.json(), agentResponse.json(), taskResponse.json(), auditResponse.json()]);
+    const [{ node }, { nodes: agents }, { tasks }, { events }] = await Promise.all([nodeResponse.json(), agentResponse.json(), taskResponse.json(), auditResponse.json()]);
     $("#connection").textContent = "Node online"; $("#connection-dot").classList.add("online");
     $("#agent-count").textContent = agents.filter((agent) => agent.status === "available").length;
+    $("#sidebar-node-count").textContent = agents.length;
+    $("#node-summary").textContent = `${agents.filter((agent) => agent.status === "available").length} ONLINE`;
     $("#task-count").textContent = tasks.length; $("#approval-count").textContent = tasks.filter((task) => task.status === "awaiting_approval").length;
     renderTopology(node, agents); renderAgents(agents, node.id); renderTasks(tasks); renderAudit(events);
   } catch (error) {
@@ -81,3 +83,4 @@ async function refresh() {
 $("#refresh").addEventListener("click", refresh);
 $("#task-filter").addEventListener("click", () => { taskFilter = taskFilter === "all" ? "awaiting_approval" : "all"; $("#task-filter").textContent = taskFilter === "all" ? "All status" : "Approval only"; refresh(); });
 refresh();
+setInterval(refresh, 15000);
