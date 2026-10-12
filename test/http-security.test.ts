@@ -55,7 +55,9 @@ test("network API denies unknown peers, cross-peer task access, and unscoped app
     assert.equal(unscopedApproval.status, 403);
     assert.deepEqual(await unscopedApproval.json(), { error: "SCOPE_FORBIDDEN" });
 
-    const approved = await fetch(`${app.base}/v1/tasks/${task.id}/approve`, { method: "POST", headers: signedHeaders(operator.identity, "POST", `/v1/tasks/${task.id}/approve`, "") });
+    const pending = node.getTask(task.id)!;
+    const approvalBody = JSON.stringify({ decision: "approve", taskDigest: node.taskDigest(pending) });
+    const approved = await fetch(`${app.base}/v1/tasks/${task.id}/approve`, { method: "POST", headers: { "content-type": "application/json", ...signedHeaders(operator.identity, "POST", `/v1/tasks/${task.id}/approve`, approvalBody) }, body: approvalBody });
     assert.equal(approved.status, 200);
     assert.equal((await approved.json() as { status: string }).status, "completed");
   } finally {

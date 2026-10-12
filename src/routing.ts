@@ -26,7 +26,9 @@ export async function routeTask(
   if (!response.ok) throw new Error(`Remote task rejected with HTTP ${response.status}`);
   let payload: Partial<Task>;
   try {
-    payload = await response.json() as Partial<Task>;
+    const text = await response.text();
+    if (Buffer.byteLength(text) > 1024 * 1024) throw new Error("Remote response exceeds 1 MiB");
+    payload = JSON.parse(text) as Partial<Task>;
   } catch {
     throw new Error("Remote response is not a MeshLink task");
   }

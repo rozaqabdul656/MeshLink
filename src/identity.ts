@@ -1,7 +1,7 @@
 import { createHash, createPrivateKey, createPublicKey, randomUUID, sign, verify } from "node:crypto";
 
-export type PeerPermission = "task.submit" | "task.read" | "task.approve" | "audit.read" | "registry.read" | "registry.write";
-export type TrustedAgent = { id: string; kid: string; publicKey: string; permissions?: PeerPermission[] };
+export type PeerPermission = "task.submit" | "task.read" | "task.approve" | "audit.read" | "registry.read" | "registry.write" | "context.read";
+export type TrustedAgent = { id: string; kid: string; publicKey: string; permissions?: PeerPermission[]; notBefore?: string; notAfter?: string; revokedAt?: string };
 export type SigningIdentity = { id: string; kid: string; privateKey: string };
 const maxAgeMs = 5 * 60_000;
 
@@ -34,16 +34,19 @@ export class RequestVerifier {
     if (!Array.isArray(parsed) || !parsed.every((entry) => entry && typeof entry.id === "string" && typeof entry.kid === "string" && typeof entry.publicKey === "string" && (entry.permissions === undefined || (Array.isArray(entry.permissions) && entry.permissions.every((permission) => typeof permission === "string"))))) throw new Error("MESHLINK_TRUSTED_AGENTS must be a JSON array of trusted Ed25519 public keys");
     return new RequestVerifier(parsed);
   }
-  public verify(method: string, pathname: string, headers: Record<string, string | string[] | undefined>, body: string): { ok: true; caller: string } | { ok: false; code: string } {
+  public verify(method: string, pathname: string, headers: Record<string, string | string[] | undefined>, body: string): { ok: true; caller: string; kid: string; signature: string; timestamp: string } | { ok: false; code: string } {
     const caller = headers["x-meshlink-agent"]; const kid = headers["x-meshlink-key-id"]; const timestamp = headers["x-meshlink-timestamp"]; const requestId = headers["x-meshlink-request-id"]; const signature = headers["x-meshlink-signature"];
     if ([caller, kid, timestamp, requestId, signature].some((value) => typeof value !== "string" || !value)) return { ok: false, code: "SIGNED_IDENTITY_REQUIRED" };
     const age = Date.now() - Date.parse(timestamp as string); if (!Number.isFinite(age) || Math.abs(age) > maxAgeMs) return { ok: false, code: "SIGNATURE_EXPIRED" };
     for (const [id, expires] of this.used) if (expires <= Date.now()) this.used.delete(id);
     if (this.used.has(requestId as string)) return { ok: false, code: "REQUEST_REPLAYED" };
     const trusted = this.trusted.find((entry) => entry.id === caller && entry.kid === kid); if (!trusted) return { ok: false, code: "UNKNOWN_SIGNING_KEY" };
+    const now = Date.now();
+    if (trusted.revokedAt && Date.parse(trusted.revokedAt) <= now) return { ok: false, code: "SIGNING_KEY_REVOKED" };
+    if ((trusted.notBefore && Date.parse(trusted.notBefore) > now) || (trusted.notAfter && Date.parse(trusted.notAfter) < now)) return { ok: false, code: "SIGNING_KEY_INACTIVE" };
     const valid = verify(null, canonical(method, pathname, caller as string, kid as string, timestamp as string, requestId as string, body), createPublicKey(trusted.publicKey), Buffer.from(signature as string, "base64url"));
     if (!valid) return { ok: false, code: "SIGNATURE_INVALID" };
-    this.used.set(requestId as string, Date.now() + maxAgeMs); return { ok: true, caller: caller as string };
+    this.used.set(requestId as string, Date.now() + maxAgeMs); return { ok: true, caller: caller as string, kid: kid as string, signature: signature as string, timestamp: timestamp as string };
   }
 
   public allows(caller: string, permission: PeerPermission): boolean {

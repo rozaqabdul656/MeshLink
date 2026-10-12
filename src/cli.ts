@@ -8,6 +8,8 @@ import { createHttpServer } from "./http.js";
 import { MeshNode } from "./node.js";
 import { loadPolicy } from "./policy.js";
 import { loadSigningIdentity, signedHeaders } from "./identity.js";
+import { SqliteNodeStore } from "./store.js";
+import { loadStaticRegistry } from "./registry.js";
 
 const diagnosticsCapability = "service.diagnostics";
 
@@ -30,7 +32,7 @@ function createNode(args: string[]): MeshNode {
     endpoint,
     capabilities: [diagnosticsCapability],
     status: "available",
-  }, loadPolicy(option(args, "--policy")));
+  }, loadPolicy(option(args, "--policy")), new SqliteNodeStore(option(args, "--storage", ".meshlink/state.db")!));
   node.register(diagnosticsCapability, async (request) => ({
     summary: `Diagnostics request accepted by ${name}`,
     evidence: ["Phase 1 sample handler: attach Docker, health, or log adapters here.", `readOnly=${request.constraints?.readOnly ?? false}`],
@@ -64,6 +66,7 @@ async function startNode(args: string[]): Promise<void> {
   const host = option(args, "--host", "127.0.0.1")!;
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("--port must be between 1 and 65535");
   const node = createNode(args);
+  for (const card of loadStaticRegistry(option(args, "--registry"))) node.registry.upsert(card);
   const networkExposed = !["127.0.0.1", "localhost", "::1"].includes(host);
   const server = createHttpServer(node, { networkExposed });
   await new Promise<void>((resolve) => server.listen(port, host, resolve));

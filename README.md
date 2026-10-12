@@ -253,6 +253,10 @@ For example, a sender can ask MeshLink to delegate a read-only task:
 
 The receiving node, not the sender, decides whether that capability may run. To route across servers, register the worker's Agent Card on the sender-side node; see [remote routing](docs/REMOTE-ROUTING.md). Use signed identities and a private VPN or TLS for every non-local deployment.
 
+### Portable context handoff
+
+`TaskRequest.context` and `TaskResult.context` carry a compact handoff envelope: a stable context ID, a bounded summary, and optional content-addressed artifact references (`sha256`). This lets Hermes brief Codex, Codex return a commit/artifact, and QA continue with that same evidence without receiving Hermes's full conversation history. Context is validated for size and artifact hash shape at the receiving node; the node never fetches an artifact URL merely because it appears in context.
+
 ### Worker-node adapter pattern
 
 To make an agent such as Codex on a VPS receive tasks, run a MeshLink Node beside it and register a capability handler. The handler must pin the allowed working directory, sandbox, timeout, and tool permissions. MeshLink sends a task to the handler; it does **not** give a remote sender direct terminal access.
@@ -291,6 +295,8 @@ export MESHLINK_ALLOWED_AGENT_ENDPOINTS='https://codex.mesh.example,https://qa.m
 ```
 
 Permissions are scoped per trusted peer: `task.submit`, `task.read`, `task.approve`, `audit.read`, `registry.read`, and `registry.write`. A task owner can read its own task; accessing other peers' tasks or approving a privileged task requires the corresponding explicit scope. Dashboard login remains separate from node-to-node authorization.
+
+SQLite (`.meshlink/state.db`) is the default durable store and creates its versioned migration metadata before serving work. Supply `--storage /secure/path/meshlink.db` to relocate it. The current release is deliberately single-node persistence; use a managed Postgres-backed deployment only after its asynchronous shared-store adapter and lease semantics are introduced.
 
 The dashboard escapes agent, task, and audit values as text. Unauthenticated dashboard pages redirect to `/login`; unauthenticated dashboard APIs return `401`, and the frontend redirects back to `/login` when a session expires. Dashboard sessions never authorize the node-to-node API.
 

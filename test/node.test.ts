@@ -30,6 +30,6 @@ test("holds privileged capability for approval", async () => {
   node.register("service.restart", async () => ({ summary: "Restarted" }));
   const task = await node.createTask({ protocolVersion: PROTOCOL_VERSION, caller: "agent://laptop", targetCapability: "service.restart", input: {} });
   assert.equal(task.status, "awaiting_approval");
-  const approved = await node.approveTask(task.id);
+  const approved = await node.approveTask(task.id, { actorId: "agent://operator", keyId: "operator-1", at: new Date().toISOString(), taskDigest: node.taskDigest(task), decision: "approve", signature: "test-signature" });
   assert.equal(approved?.status, "completed");
 });

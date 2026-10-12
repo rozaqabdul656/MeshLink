@@ -70,12 +70,14 @@ async function refresh() {
   try {
     const [health, nodeResponse, agentResponse, taskResponse, auditResponse] = await Promise.all([api("/health"), api("/dashboard/api/node"), api("/dashboard/api/nodes"), api("/dashboard/api/tasks"), api("/dashboard/api/audit")]);
     if (!health.ok) throw new Error("Node unavailable");
-    const [{ node }, { nodes: agents }, { tasks }, { events }] = await Promise.all([nodeResponse.json(), agentResponse.json(), taskResponse.json(), auditResponse.json()]);
+    const [{ node, security }, { nodes: agents }, { tasks }, { events }] = await Promise.all([nodeResponse.json(), agentResponse.json(), taskResponse.json(), auditResponse.json()]);
     setText("#connection", "Node online"); $("#connection-dot")?.classList.add("online");
     setText("#agent-count", agents.filter((agent) => agent.status === "available").length);
     setText("#sidebar-node-count", agents.length);
     setText("#node-summary", `${agents.filter((agent) => agent.status === "available").length} ONLINE`);
     setText("#task-count", tasks.length); setText("#approval-count", tasks.filter((task) => task.status === "awaiting_approval").length);
+    setText("#trust-posture", security?.identity === "signed-ed25519" ? "SIGNED" : "LOCAL");
+    setText("#persistence-posture", `${security?.persistence ?? "unknown"} · ${security?.transport ?? "unknown"}`);
     renderTopology(node, agents); renderAgents(agents, node.id); renderTasks(tasks); renderAudit(events);
   } catch (error) {
     if (error?.message !== "DASHBOARD_AUTH_REQUIRED") { setText("#connection", "Node offline"); $("#connection-dot")?.classList.remove("online"); }
