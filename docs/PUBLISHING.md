@@ -5,6 +5,24 @@ MeshLink is published from GitHub Actions through [npm Trusted Publishing](https
 Package: [@meshlink-ai/meshlink](https://www.npmjs.com/package/@meshlink-ai/meshlink)
 Workflow: [`.github/workflows/publish.yml`](../.github/workflows/publish.yml)
 
+## Docker Hub image
+
+The release tag also builds a multi-platform (`linux/amd64`, `linux/arm64`)
+image and publishes it as [`rozaq220301/meshlink`](https://hub.docker.com/r/rozaq220301/meshlink).
+The Docker workflow is [`.github/workflows/publish-docker.yml`](../.github/workflows/publish-docker.yml).
+
+Before the first image release, add these GitHub repository secrets:
+
+- `DOCKERHUB_USERNAME`: `rozaq220301`
+- `DOCKERHUB_TOKEN`: a Docker Hub access token with **Read & Write** access to
+  the `rozaq220301/meshlink` repository.
+
+Never add the token to a committed `.env` file. A release tag such as `v1.0.2`
+publishes `rozaq220301/meshlink:1.0.2`, `:1.0`, and `:1`. After verifying a
+release, run **Publish Docker image** manually with the input `latest` to move
+the convenience tag deliberately. The workflow can also be run manually with
+any other specific image tag.
+
 ## One-time setup
 
 1. Make sure the `@meshlink-ai/meshlink` package belongs to the `meshlink-ai` npm organization. The initial `1.0.0` release was published manually with npm 2FA; later releases use GitHub Actions.
